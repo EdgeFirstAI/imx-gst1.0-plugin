@@ -676,12 +676,16 @@ static gboolean imx_ocl_check_conversion (Imx2DDevice *device, GstCaps *input_ca
 
   if (!ocl->warp_param.enable) {
     /* If the input format and output format are the same,
-     * return true to support passthrough mode.
+     * check input and output caps to determine if it is
+     * in the passthrough mode.
      */
     if ((!src_width || !src_height || !dst_width || !dst_height)
       || (src_width == dst_width || src_height == dst_height)) {
       if (in_map->ocl_pixel_format == out_map->ocl_pixel_format) {
-        return TRUE;
+        if (gst_caps_is_equal (input_caps, output_caps)) {
+          GST_INFO ("Has the same caps");
+          return TRUE;
+        }
       }
     }
     opcode = OCL_OPCODE_CSC;
