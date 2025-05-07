@@ -440,7 +440,7 @@ static gint imx_pxp_check_frame_paddr (Imx2DFrame *dst, Imx2DFrame *src)
     }
   }
 
-  if (!src->mem->user_data && src->fd[1] >= 0) {
+  if (!src->mem->user_data && src->fd[1] >= 0 && src->fd[1] != src->fd[0]) {
     paddr = phy_addr_from_fd (src->fd[1]);
     if (paddr) {
       src->mem->user_data = (gpointer *)paddr;
