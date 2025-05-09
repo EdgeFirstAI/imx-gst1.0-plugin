@@ -634,15 +634,13 @@ static GList* imx_ocl_get_supported_fmts (OCL_PORT port)
 
 static gboolean imx_ocl_check_conversion (Imx2DDevice *device, GstCaps *input_caps, GstCaps *output_caps)
 {
-  GstVideoFormat in_format;
-  GstVideoFormat out_format;
+  Imx2DVideoInfo src_info;
+  Imx2DVideoInfo dst_info;
   const OclFmtMap *in_map;
   const OclFmtMap *out_map;
   OCL_FORMAT ocl_src_fmt;
   OCL_FORMAT ocl_dst_fmt;
   Imx2DDeviceOcl *ocl;
-  gint src_width, src_height;
-  gint dst_width, dst_height;
   OCL_OPCODE_TYPE opcode = OCL_OPCODE_NULL;
   gboolean ret = TRUE;
 
@@ -651,23 +649,20 @@ static gboolean imx_ocl_check_conversion (Imx2DDevice *device, GstCaps *input_ca
   ocl = (Imx2DDeviceOcl *) (device->priv);
 
   /* Check whether the input and output caps have fixed format */
-  src_width = src_height = 0;
-  dst_width = dst_height = 0;
-  in_format = imx_g2d_device_get_fixed_format(input_caps, &src_width, &src_height);
-  out_format = imx_g2d_device_get_fixed_format(output_caps, &dst_width, &dst_height);
-  if (in_format == GST_VIDEO_FORMAT_UNKNOWN
-      || out_format == GST_VIDEO_FORMAT_UNKNOWN) {
-    GST_INFO ("No fixed input or output format, input caps %" GST_PTR_FORMAT
-        ", output_caps %" GST_PTR_FORMAT, input_caps, output_caps);
+  ret = imx_2d_device_video_info_from_caps (input_caps, &src_info);
+  ret &= imx_2d_device_video_info_from_caps (output_caps, &dst_info);
+  if (!ret) {
+    GST_INFO ("No fixed input or output format, input caps: %" GST_PTR_FORMAT
+        ", output_caps: %" GST_PTR_FORMAT, input_caps, output_caps);
     return TRUE;
   }
   GST_INFO ("input format: %s, output format: %s",
-      gst_video_format_to_string(in_format),
-      gst_video_format_to_string(out_format));
+      gst_video_format_to_string(src_info.fmt),
+      gst_video_format_to_string(dst_info.fmt));
 
   /* Check whether the input and output format are in the list */
-  in_map = imx_ocl_get_format_map (in_format);
-  out_map = imx_ocl_get_format_map (out_format);
+  in_map = imx_ocl_get_format_map (src_info.fmt);
+  out_map = imx_ocl_get_format_map (dst_info.fmt);
   if (!in_map || !out_map) {
     GST_INFO ("No valid input or output format, input caps %" GST_PTR_FORMAT
         ", output_caps %" GST_PTR_FORMAT, input_caps, output_caps);
@@ -679,8 +674,8 @@ static gboolean imx_ocl_check_conversion (Imx2DDevice *device, GstCaps *input_ca
      * check input and output caps to determine if it is
      * in the passthrough mode.
      */
-    if ((!src_width || !src_height || !dst_width || !dst_height)
-      || (src_width == dst_width || src_height == dst_height)) {
+    if ((!src_info.w || !src_info.h || !dst_info.w || !dst_info.h)
+      || (src_info.w == dst_info.w || src_info.h == dst_info.h)) {
       if (in_map->ocl_pixel_format == out_map->ocl_pixel_format) {
         if (gst_caps_is_equal (input_caps, output_caps)) {
           GST_INFO ("Has the same caps");
@@ -698,10 +693,14 @@ static gboolean imx_ocl_check_conversion (Imx2DDevice *device, GstCaps *input_ca
   memset (&ocl_dst_fmt, 0, sizeof(OCL_FORMAT));
   ocl_src_fmt.format = in_map->ocl_pixel_format;
   ocl_dst_fmt.format = out_map->ocl_pixel_format;
-  ocl_src_fmt.right = src_width;
-  ocl_src_fmt.bottom = src_height;
-  ocl_dst_fmt.right = dst_width;
-  ocl_dst_fmt.bottom = dst_height;
+  ocl_src_fmt.right  = src_info.w;
+  ocl_src_fmt.bottom = src_info.h;
+  ocl_dst_fmt.right  = dst_info.w;
+  ocl_dst_fmt.bottom = dst_info.h;
+  ocl_src_fmt.interlace = src_info.interlace_type;
+  ocl_dst_fmt.interlace = dst_info.interlace_type;
+  imx_ocl_update_colorimetry (&ocl_src_fmt, src_info.colorimetry);
+  imx_ocl_update_colorimetry (&ocl_dst_fmt, dst_info.colorimetry);
   if (OCL_SUCCESS != OCL_CheckConversion(opcode, &ocl_src_fmt, &ocl_dst_fmt)) {
     ret = FALSE;
   }

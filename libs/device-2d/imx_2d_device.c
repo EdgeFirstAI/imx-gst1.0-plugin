@@ -134,14 +134,31 @@ gint imx_2d_device_destroy(Imx2DDevice *device)
   return -1;
 }
 
-GstVideoFormat imx_g2d_device_get_fixed_format (GstCaps * caps, gint *width, gint *height)
+/**
+ * imx_2d_device_video_info_from_caps
+ * @caps: a #GstCaps
+ * @info: (out caller-allocates): #Imx2DVideoInfo
+ *
+ * Parse @caps and update @info no matter if the caps is fixed or not.
+ * The function can be called during caps negotiation.
+ *
+ * Returns: TRUE if @caps has fixed format.
+ */
+gboolean imx_2d_device_video_info_from_caps (GstCaps * caps, Imx2DVideoInfo *info)
 {
   gint i, caps_size;
   GstStructure *st;
   const GValue *format;
   const gchar *fmt_name;
   GstVideoFormat out_fmt = GST_VIDEO_FORMAT_UNKNOWN;
+  const gchar *s;
+  GstVideoInfo video_info;
 
+  if (!caps || !info) {
+    return FALSE;
+  }
+
+  memset (info, 0, sizeof (Imx2DVideoInfo));
   caps_size = gst_caps_get_size (caps);
   for (i = 0; i < caps_size; i++) {
     st = gst_caps_get_structure(caps, i);
@@ -165,14 +182,6 @@ GstVideoFormat imx_g2d_device_get_fixed_format (GstCaps * caps, gint *width, gin
         /* Has the fixed format and get it below */
         format = val;
 
-        /* Get width and height information if needed */
-        if (width && height) {
-          if (!gst_structure_get (st, "width", G_TYPE_INT, width, "height",
-              G_TYPE_INT, height, NULL)) {
-            *width = 0;
-            *height = 0;
-          }
-        }
       } else {
         out_fmt = GST_VIDEO_FORMAT_UNKNOWN;
         GST_TRACE ("No fixed format in the list");
@@ -188,13 +197,66 @@ GstVideoFormat imx_g2d_device_get_fixed_format (GstCaps * caps, gint *width, gin
         /* Record the first fixed format */
         out_fmt = gst_video_format_from_string(fmt_name);
 
-        /* Get width and height information if needed */
-        if (width && height) {
-          if (!gst_structure_get (st, "width", G_TYPE_INT, width, "height",
-              G_TYPE_INT, height, NULL)) {
-            *width = 0;
-            *height = 0;
-          }
+        gst_video_info_init (&video_info);
+        video_info.finfo = gst_video_format_get_info (out_fmt);
+        if (!gst_structure_get (st, "width", G_TYPE_INT,
+              &(video_info.width), "height",
+              G_TYPE_INT, &(video_info.height), NULL)) {
+          video_info.width = 0;
+          video_info.height = 0;
+        }
+
+        if ((s = gst_structure_get_string (st, "interlace-mode"))) {
+          video_info.interlace_mode = gst_video_interlace_mode_from_string (s);
+        } else {
+          video_info.interlace_mode = GST_VIDEO_INTERLACE_MODE_PROGRESSIVE;
+        }
+
+        if ((s = gst_structure_get_string (st, "colorimetry"))) {
+          gst_video_colorimetry_from_string (&(video_info.colorimetry), s);
+        }
+
+        info->fmt = GST_VIDEO_INFO_FORMAT(&video_info);
+        switch (video_info.colorimetry.range) {
+          case GST_VIDEO_COLOR_RANGE_0_255:
+            info->colorimetry.range = IMX_2D_COLOR_RANGE_FULL;
+            break;
+          case GST_VIDEO_COLOR_RANGE_16_235:
+            info->colorimetry.range = IMX_2D_COLOR_RANGE_LIMITED;
+            break;
+          default:
+            info->colorimetry.range = IMX_2D_COLOR_RANGE_DEFAULT;
+            break;
+        }
+
+        switch (video_info.colorimetry.matrix) {
+          case GST_VIDEO_COLOR_MATRIX_BT709:
+            info->colorimetry.matrix = IMX_2D_COLOR_MATRIX_BT709;
+            break;
+          case GST_VIDEO_COLOR_MATRIX_BT601:
+            info->colorimetry.matrix = IMX_2D_COLOR_MATRIX_BT601_625;
+            break;
+          default:
+            info->colorimetry.matrix = IMX_2D_COLOR_MATRIX_DEFAULT;
+            break;
+        }
+
+        switch (video_info.interlace_mode) {
+          case GST_VIDEO_INTERLACE_MODE_INTERLEAVED:
+            info->interlace_type = IMX_2D_INTERLACE_INTERLEAVED;
+            break;
+          case GST_VIDEO_INTERLACE_MODE_MIXED:
+            info->interlace_type = IMX_2D_INTERLACE_MIXED;
+            break;
+          case GST_VIDEO_INTERLACE_MODE_PROGRESSIVE:
+            info->interlace_type = IMX_2D_INTERLACE_PROGRESSIVE;
+            break;
+          case GST_VIDEO_INTERLACE_MODE_FIELDS:
+            info->interlace_type = IMX_2D_INTERLACE_FIELDS;
+            break;
+          default:
+            info->interlace_type = IMX_2D_INTERLACE_PROGRESSIVE;
+            break;
         }
       } else if (out_fmt != gst_video_format_from_string(fmt_name)) {
         out_fmt = GST_VIDEO_FORMAT_UNKNOWN;
@@ -204,7 +266,12 @@ GstVideoFormat imx_g2d_device_get_fixed_format (GstCaps * caps, gint *width, gin
     }
   }
 
-  return out_fmt;
+  if (out_fmt == GST_VIDEO_FORMAT_UNKNOWN) {
+    memset (info, 0, sizeof (Imx2DVideoInfo));
+    return FALSE;
+  } else {
+    return TRUE;
+  }
 }
 
 static gboolean imx_2d_device_probe_warp_header (Imx2DDevice *device,

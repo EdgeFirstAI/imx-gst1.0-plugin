@@ -75,7 +75,8 @@ typedef enum {
 typedef enum {
   IMX_2D_INTERLACE_PROGRESSIVE,
   IMX_2D_INTERLACE_INTERLEAVED,
-  IMX_2D_INTERLACE_FIELDS
+  IMX_2D_INTERLACE_FIELDS,
+  IMX_2D_INTERLACE_MIXED,
 } Imx2DInterlaceType;
 
 typedef enum {
@@ -137,6 +138,7 @@ typedef struct _Imx2DVideoInfo {
   guint stride;
   Imx2DTileType tile_type;
   Imx2DColorimetry colorimetry;
+  Imx2DInterlaceType interlace_type;
 } Imx2DVideoInfo;
 
 typedef struct _Imx2DVidoWarpArbitrary {
@@ -227,7 +229,7 @@ typedef struct _Imx2DDeviceInfo {
 const Imx2DDeviceInfo * imx_get_2d_devices(void);
 Imx2DDevice * imx_2d_device_create(Imx2DDeviceType  device_type);
 gint imx_2d_device_destroy(Imx2DDevice *device);
-GstVideoFormat imx_g2d_device_get_fixed_format (GstCaps * caps, gint *width, gint *height);
+gboolean imx_2d_device_video_info_from_caps (GstCaps * caps, Imx2DVideoInfo *info);
 gboolean imx_2d_device_read_warp_coordinates_file (Imx2DDevice *device,
     const char* file_name, Imx2DVideoWarp *video_warp);
 void imx_2d_device_set_warp_controls (const GstStructure * config,

@@ -786,31 +786,32 @@ static gint imx_g2d_fill_color(Imx2DDevice *device, Imx2DFrame *dst,
 
 static gboolean imx_g2d_check_conversion (Imx2DDevice *device, GstCaps *input_caps, GstCaps *output_caps)
 {
-  GstVideoFormat in_format;
-  GstVideoFormat out_format;
+  Imx2DVideoInfo src_info;
+  Imx2DVideoInfo dst_info;
   const G2dFmtMap *in_map = NULL;
   const G2dFmtMap *out_map = NULL;
+  gboolean ret = TRUE;
 
   if (!HAS_DPU()) {
     return TRUE;
   }
 
   /* Check whether the input and output caps have fixed format */
-  in_format = imx_g2d_device_get_fixed_format(input_caps, NULL, NULL);
-  out_format = imx_g2d_device_get_fixed_format(output_caps, NULL, NULL);
-  if (in_format == GST_VIDEO_FORMAT_UNKNOWN
-      || out_format == GST_VIDEO_FORMAT_UNKNOWN) {
-    GST_INFO ("No fixed input or output format, input caps %" GST_PTR_FORMAT
-        ", output_caps %" GST_PTR_FORMAT, input_caps, output_caps);
+  ret = imx_2d_device_video_info_from_caps (input_caps, &src_info);
+  ret &= imx_2d_device_video_info_from_caps (output_caps, &dst_info);
+  if (!ret) {
+    GST_INFO ("No fixed input or output format, input caps: %" GST_PTR_FORMAT
+        ", output_caps: %" GST_PTR_FORMAT, input_caps, output_caps);
     return TRUE;
   }
+
   GST_INFO ("input format: %s, output format: %s",
-      gst_video_format_to_string(in_format),
-      gst_video_format_to_string(out_format));
+      gst_video_format_to_string(src_info.fmt),
+      gst_video_format_to_string(dst_info.fmt));
 
   /* Check whether the input and output format are in the list */
-  in_map = imx_g2d_get_format(in_format);
-  out_map = imx_g2d_get_format(out_format);
+  in_map = imx_g2d_get_format(src_info.fmt);
+  out_map = imx_g2d_get_format(dst_info.fmt);
   if (!in_map || !out_map) {
     GST_INFO ("No valid input or output format, input caps %" GST_PTR_FORMAT
         ", output_caps %" GST_PTR_FORMAT, input_caps, output_caps);
