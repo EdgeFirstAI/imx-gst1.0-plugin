@@ -680,7 +680,7 @@ static void aiurcontent_set_flag (AiurContent *pContent)
 
   pContent->nonseekable_http = FALSE;
   if (uri_protocal
-      && (strcmp (uri_protocal, "http") == 0 || strcmp (uri_protocal, "https"))) {
+      && (strcmp (uri_protocal, "http") == 0 || strcmp (uri_protocal, "https") == 0)) {
       pContent->nonseekable_http = !pContent->seekable && !pContent->adaptive_playback;
   }
 
