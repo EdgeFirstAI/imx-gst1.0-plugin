@@ -2255,7 +2255,8 @@ gst_imx_video_convert_class_init (GstImxVideoConvertClass * klass)
       G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
   }
 
-  if (in_plugin->device_type == IMX_2D_DEVICE_G2D) {
+  if (in_plugin->device_type == IMX_2D_DEVICE_G2D ||
+      in_plugin->device_type == IMX_2D_DEVICE_OCL) {
     g_object_class_install_property (gobject_class,
         PROP_VIDEOCROP_META_ENABLE,
         g_param_spec_boolean("videocrop-meta-enable", "process buffer's videocrop meta",
