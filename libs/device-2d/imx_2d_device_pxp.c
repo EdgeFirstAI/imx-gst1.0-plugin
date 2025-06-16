@@ -598,12 +598,15 @@ static gint imx_pxp_overlay(Imx2DDevice *device,
   guint BPP = 4;
   const PxpFmtMap *fmt_map = NULL;
   const PxpFmtMap *out_map = NULL;
+  const GstVideoFormatInfo *src_finfo;
 
   if (!device || !device->priv || !dst || !src || !dst->mem || !src->mem)
     return -1;
 
   Imx2DDevicePxp *pxp = (Imx2DDevicePxp *) (device->priv);
   memset(&pxp->config.ol_param[0], 0, sizeof(struct pxp_layer_param));
+
+  src_finfo = gst_video_format_get_info (src->info.fmt);
 
   orig_src_fmt = pxp->config.s0_param.pixel_fmt;
   orig_dst_fmt = pxp->config.out_param.pixel_fmt;
@@ -725,8 +728,7 @@ static gint imx_pxp_overlay(Imx2DDevice *device,
     return -1;
   }
 
-  if (orig_src_fmt == PXP_PIX_FMT_RGB32 || orig_src_fmt == PXP_PIX_FMT_BGRA32 ||
-      orig_src_fmt == PXP_PIX_FMT_RGB565 || orig_src_fmt == PXP_PIX_FMT_RGB555){
+  if (src_finfo && GST_VIDEO_FORMAT_INFO_IS_RGB (src_finfo)){
     //overlay don't support resize, resize to s0 size before blending
     if (dst->crop.w != src->crop.w || dst->crop.h != src->crop.h) {
       if (pxp->rgb_temp.vaddr == NULL) {
@@ -965,11 +967,9 @@ static gint imx_pxp_fill_color(Imx2DDevice *device, Imx2DFrame *dst,
   A = (RGBA8888 & 0xFF000000) >> 24;
 
   Imx2DDevicePxp *pxp = (Imx2DDevicePxp *) (device->priv);
+  const GstVideoFormatInfo *info = gst_video_format_get_info (dst->info.fmt);
 
-  if (dst->info.fmt == GST_VIDEO_FORMAT_BGRx
-      || dst->info.fmt == GST_VIDEO_FORMAT_RGB16
-      || dst->info.fmt == GST_VIDEO_FORMAT_BGRA
-      || dst->info.fmt == GST_VIDEO_FORMAT_BGR) {
+  if (info && GST_VIDEO_FORMAT_INFO_IS_RGB (info)) {
     bgcolor = (A << 24)| (R << 16) | (G << 8) | B;
   } else {
     //BT.709
