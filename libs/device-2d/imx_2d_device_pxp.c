@@ -162,7 +162,7 @@ static PxpFmtMap pxp_out_fmts_map_v2[] = {
 };
 
 static const PxpFmtMap * imx_pxp_get_format(GstVideoFormat format,
-                                            PxpFmtMap *map)
+                                            const PxpFmtMap *map)
 {
   while(map->gst_video_format != GST_VIDEO_FORMAT_UNKNOWN) {
     if (map->gst_video_format == format)
@@ -227,7 +227,7 @@ imx_pxp_alloc_mem(Imx2DDevice *device, PhyMemBlock *memblk)
 
   gint ret = pxp_get_mem (mem);
   if (ret < 0) {
-    GST_ERROR("PXP allocate %u bytes memory failed: %s",
+    GST_ERROR("PXP allocate %" G_GSIZE_FORMAT " bytes memory failed: %s",
               memblk->size, strerror(errno));
     return -1;
   }
@@ -307,8 +307,8 @@ static gint imx_pxp_copy_mem(Imx2DDevice* device, PhyMemBlock *dst_mem,
 
   memcpy(dst_mem->vaddr, src_mem->vaddr+offset, size);
 
-  GST_DEBUG ("PXP copy from vaddr (%p), paddr (%p), size (%d) to "
-      "vaddr (%p), paddr (%p), size (%d)",
+  GST_DEBUG ("PXP copy from vaddr (%p), paddr (%p), size (%" G_GSIZE_FORMAT ") to "
+      "vaddr (%p), paddr (%p), size (%" G_GSIZE_FORMAT ")",
       src_mem->vaddr, src_mem->paddr, src_mem->size,
       dst_mem->vaddr, dst_mem->paddr, dst_mem->size);
 
@@ -633,7 +633,7 @@ static gint imx_pxp_overlay(Imx2DDevice *device,
       && pxp->ov_temp.size < (dst->crop.w * dst->crop.h * BPP)) {
     imx_pxp_free_mem(device, &pxp->ov_temp);
     pxp->ov_temp.size = dst->crop.w * dst->crop.h * BPP;
-    GST_LOG ("reallocte memory %d, BPP=%d", pxp->ov_temp.size, BPP);
+    GST_LOG ("reallocte memory %" G_GSIZE_FORMAT ", BPP=%d", pxp->ov_temp.size, BPP);
     if (imx_pxp_alloc_mem(device, &pxp->ov_temp) < 0)
       return -1;
   }
@@ -746,7 +746,7 @@ static gint imx_pxp_overlay(Imx2DDevice *device,
           && pxp->rgb_temp.size < (orig_dst_w * orig_dst_h * BPP)) {
         imx_pxp_free_mem(device, &pxp->rgb_temp);
         pxp->rgb_temp.size = orig_dst_w * orig_dst_h * BPP;
-        GST_LOG ("reallocte memory %d", pxp->rgb_temp.size);
+        GST_LOG ("reallocte memory %" G_GSIZE_FORMAT, pxp->rgb_temp.size);
         if (imx_pxp_alloc_mem(device, &pxp->rgb_temp) < 0)
           return -1;
       }
@@ -814,7 +814,7 @@ static gint imx_pxp_overlay(Imx2DDevice *device,
         && pxp->rgb_temp.size < (dst->crop.w * dst->crop.h * 2)) {
       imx_pxp_free_mem(device, &pxp->rgb_temp);
       pxp->rgb_temp.size = dst->crop.w * dst->crop.h * 2;
-      GST_LOG ("reallocte memory %d", pxp->rgb_temp.size);
+      GST_LOG ("reallocte memory %" G_GSIZE_FORMAT, pxp->rgb_temp.size);
       if (imx_pxp_alloc_mem(device, &pxp->rgb_temp) < 0)
         return -1;
     }
