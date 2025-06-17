@@ -956,53 +956,21 @@ static gint imx_pxp_fill_color(Imx2DDevice *device, Imx2DFrame *dst,
 {
   if (!device || !device->priv)
     return -1;
-  guint bgcolor;
 
-  gchar R,G,B,A,Y,U,V;
-  gdouble y,u,v;
+  Imx2DDevicePxp *pxp = (Imx2DDevicePxp *) (device->priv);
+  guint bgcolor;
+  gchar R,G,B,A;
 
   R = RGBA8888 & 0x000000FF;
   G = (RGBA8888 & 0x0000FF00) >> 8;
   B = (RGBA8888 & 0x00FF0000) >> 16;
   A = (RGBA8888 & 0xFF000000) >> 24;
 
-  Imx2DDevicePxp *pxp = (Imx2DDevicePxp *) (device->priv);
-  const GstVideoFormatInfo *info = gst_video_format_get_info (dst->info.fmt);
-
-  if (info && GST_VIDEO_FORMAT_INFO_IS_RGB (info)) {
-    bgcolor = (A << 24)| (R << 16) | (G << 8) | B;
-  } else {
-    //BT.709
-    y = (0.213*R + 0.715*G + 0.072*B);
-    u = -0.117*R - 0.394*G + 0.511*B + 128;
-    v = 0.511*R - 0.464*G - 0.047*B + 128;
-
-    if (y > 255.0)
-      Y = 255;
-    else
-      Y = (gchar)y;
-    if (u < 0.0)
-      U = 0;
-    else
-      U = (gchar)u;
-    if (u > 255.0)
-      U = 255;
-    else
-      U = (gchar)u;
-    if (v < 0.0)
-      V = 0;
-    else
-      V = (gchar)v;
-    if (v > 255.0)
-      V = 255;
-    else
-      V = (gchar)v;
-
-    bgcolor = (A << 24) | (Y << 16) | (U << 8) | V;
-  }
+  bgcolor = (A << 24)| (R << 16) | (G << 8) | B;
 
   pxp->config.proc_data.bgcolor = bgcolor;
   pxp->background = RGBA8888;
+  GST_DEBUG ("fill background color as %x", bgcolor);
 
   return 0;
 }

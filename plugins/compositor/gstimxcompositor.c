@@ -544,8 +544,7 @@ gst_imxcompositor_sink_query (GstAggregator * agg, GstAggregatorPad * bpad,
   return ret;
 }
 
-static gint
-get_format_csc_loss(GstImxCompositorPad *pad, GstVideoFormat in_name, GstVideoFormat out_name)
+static gint get_format_csc_loss(GstVideoFormat in_name, GstVideoFormat out_name)
 {
 #define SCORE_FORMAT_CHANGE       1
 #define SCORE_COLORSPACE_LOSS     2     /* RGB <-> YUV */
@@ -571,15 +570,10 @@ get_format_csc_loss(GstImxCompositorPad *pad, GstVideoFormat in_name, GstVideoFo
   if (in_info == out_info)
     return 0;
 
+  loss = SCORE_FORMAT_CHANGE;
+
   in_flags = GST_VIDEO_FORMAT_INFO_FLAGS (in_info);
   out_flags = GST_VIDEO_FORMAT_INFO_FLAGS (out_info);
-
-  /* when enable alpha blend, need limite output format to RGB */
-  if ((out_flags & COLORSPACE_MASK) == GST_VIDEO_FORMAT_FLAG_YUV
-      && (pad->alpha < 1.0 || (in_flags & GST_VIDEO_FORMAT_FLAG_ALPHA)))
-      return loss;
-
-  loss = SCORE_FORMAT_CHANGE;
 
   if ((out_flags & COLORSPACE_MASK) != (in_flags & COLORSPACE_MASK)) {
     loss += SCORE_COLORSPACE_LOSS;
@@ -730,7 +724,7 @@ static GstVideoFormat find_best_src_format(GstAggregator *vagg, GstCaps *o_caps)
         complex += resol * COMPLEX_ROTATE_FACTOR;
 
       complex += resol * get_format_csc_complexity(i_fmt, o_fmt);
-      loss = resol * get_format_csc_loss(pad, i_fmt, o_fmt);
+      loss = resol * get_format_csc_loss(i_fmt, o_fmt);
       factor += IMX_COMPOSITOR_CSC_LOSS_FACTOR * loss;
       factor += IMX_COMPOSITOR_CSC_COMPLEX_FACTOR * complex;
     }
