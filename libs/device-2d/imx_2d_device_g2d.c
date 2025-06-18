@@ -96,6 +96,7 @@ static G2dFmtMap g2d_fmts_map_dpu[] = {
     {GST_VIDEO_FORMAT_YUY2,   G2D_YUYV,     16},
     {GST_VIDEO_FORMAT_NV12,   G2D_NV12,     12},
     {GST_VIDEO_FORMAT_GRAY8,  G2D_GRAY8,    8},
+    {GST_VIDEO_FORMAT_RGB,    G2D_RGB888,   24},
 
     //this only for separate YUV format and RGB format
     {GST_VIDEO_FORMAT_UNKNOWN, -1,          1},
@@ -406,6 +407,7 @@ static gint imx_g2d_set_src_plane(struct g2d_surface *g2d_src, gchar *paddr)
     case G2D_YUYV:
     case G2D_YVYU:
     case G2D_GRAY8:
+    case G2D_RGB888:
       g2d_src->planes[0] = (gintptr)(paddr);
       break;
     default:
@@ -976,6 +978,27 @@ static GList* imx_g2d_get_supported_fmts_of_capability(Imx2DDevice* device, Imx2
   return list;
 }
 
+static gboolean imx_g2d_get_alignment (Imx2DDevice* device, GstVideoInfo *in_info,
+  GstVideoInfo *out_info, Imx2DAlignInfo *align_info)
+{
+  gboolean ret = FALSE;
+
+  if (!device || !in_info || !out_info || !align_info)
+    return FALSE;
+
+  if (HAS_DPU()) {
+    align_info->is_apply = TRUE;
+    align_info->width_align = 4;
+    align_info->height_align = 4;
+    align_info->size_align = align_info->width_align * align_info->height_align;
+    ret = TRUE;
+  } else {
+    align_info->is_apply = FALSE;
+  }
+
+  return ret;
+}
+
 Imx2DDevice * imx_g2d_create(Imx2DDeviceType  device_type)
 {
   Imx2DDevice * device = g_slice_alloc(sizeof(Imx2DDevice));
@@ -1009,7 +1032,7 @@ Imx2DDevice * imx_g2d_create(Imx2DDeviceType  device_type)
   device->check_conversion    = imx_g2d_check_conversion;
   device->config_warp_info    = imx_g2d_config_warp_info;
   device->get_supported_fmts_of_capability = imx_g2d_get_supported_fmts_of_capability;
-  device->get_alignment       = NULL;
+  device->get_alignment       = imx_g2d_get_alignment;
 
   return device;
 }
