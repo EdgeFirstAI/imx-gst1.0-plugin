@@ -351,6 +351,12 @@ static GstCaps* imx_video_convert_transform_caps(GstBaseTransform *transform,
 
     gst_structure_remove_fields(st, "format", NULL);
 
+    /* Remove colorimetry field to support colorimetry conversion
+     * if the input and output are different.
+     */
+    if (gst_structure_has_field (st, "colorimetry"))
+      gst_structure_remove_field (st, "colorimetry");
+
     /* if pixel aspect ratio, make a range of it*/
     if (gst_structure_has_field(st, "pixel-aspect-ratio")) {
       gst_structure_set(st, "pixel-aspect-ratio",
@@ -626,6 +632,7 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
   GST_LOG("source format : %s", fmt_name);
 
   in_fmt = gst_video_format_from_string(fmt_name);
+  gboolean have_colorimetry = gst_structure_has_field (ins, "colorimetry");
 
   for (i = 0; i < gst_caps_get_size(new_caps); i++) {
     tests = gst_caps_get_structure(new_caps, i);
@@ -641,6 +648,12 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
         if (G_VALUE_HOLDS_STRING(val)) {
           out_fmt = gst_video_format_from_string(g_value_get_string(val));
           loss = get_format_conversion_loss(transform, in_fmt, out_fmt);
+
+          /* Append the colorimetry field if needed */
+          if (!gst_structure_has_field(tests, "colorimetry") && have_colorimetry) {
+            gst_structure_set_value(tests, "colorimetry",
+                gst_structure_get_value (ins, "colorimetry"));
+          }
 
           /* Need check if current device and the downstream can accept this format
            * because some devices can only support the specified format conversion */
@@ -663,6 +676,12 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
     } else if (G_VALUE_HOLDS_STRING(format)) {
       out_fmt = gst_video_format_from_string(g_value_get_string(format));
       loss = get_format_conversion_loss(transform, in_fmt, out_fmt);
+
+      /* Append the colorimetry field if needed */
+      if (!gst_structure_has_field(tests, "colorimetry") && have_colorimetry) {
+        gst_structure_set_value(tests, "colorimetry",
+            gst_structure_get_value (ins, "colorimetry"));
+      }
 
       /* Need check if current device and the downstream can accept this format
        * because some devices can only support the specified format conversion */
@@ -698,7 +717,8 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
     /* respect the colormetry of selected output conversion format,
      * this is to avoid negotiation fail between converter and v4l2enc
      * when outs format is YUV(RGB) but actual output format is RGB(YUV) */
-    if (gst_structure_get_value(outs, "colorimetry") && color)
+    if ((gst_structure_get_value(outs, "colorimetry") && color)
+        || (have_colorimetry && color))
       gst_structure_set_value(outs, "colorimetry", color);
     gst_caps_unref(new_caps);
 
