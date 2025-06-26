@@ -106,8 +106,12 @@ gst_imxasrc_resampler_configure (GstImxASRCResampler *resampler, ASRCAudioInfo i
     resampler->asrc_sw->quality = resampler->quality;
     ret = imx_asrc_sw_config (resampler->asrc_sw);
     if (ret) {
-      GST_ERROR ("imx_asrc_sw_config failed");
-      return ret;
+      if (info.input_sample_rate == info.output_sample_rate) {
+        return 0;
+      } else {
+        GST_ERROR ("imx_asrc_sw_config failed");
+        return ret;
+      }
     }
   }
 
@@ -131,7 +135,7 @@ gsize
 gst_imxasrc_resampler_get_out_frames (GstImxASRCResampler *resampler,
                                       gsize in_frames)
 {
-  gsize out;
+  gsize out = 0;
 
   GST_DEBUG("gst_imxasrc_resampler_get_out_frames");
   g_return_val_if_fail (resampler != NULL, 0);
