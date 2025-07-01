@@ -47,6 +47,7 @@
 #define GST_IMX_VIDEO_VIDEOCROP_META_DEFAULT         FALSE
 #define GST_IMX_VIDEO_WARP_DEFAULT                   FALSE
 #define GST_IMX_VIDEO_WARP_MAP_DEFAULT               IMX_2D_WARP_MAP_NULL
+#define GST_IMX_VIDEO_KEEP_RATIO_DEFAULT             FALSE
 
 #define GST_IMX_CONVERT_UNREF_BUFFER(buffer) {\
     if (buffer) {                             \
@@ -75,7 +76,8 @@ enum {
   PROP_VIDEOCROP_META_ENABLE,
   PROP_VIDEO_WARP_ENABLE,
   PROP_VIDEO_WARP_COORD_FILE,
-  PROP_VIDEO_WARP_EXTRA_CONTROLS
+  PROP_VIDEO_WARP_EXTRA_CONTROLS,
+  PROP_KEEP_RATIO
 };
 
 static GstElementClass *parent_class = NULL;
@@ -172,6 +174,9 @@ static void gst_imx_video_convert_set_property (GObject * object,
         }
       }
       break;
+    case PROP_KEEP_RATIO:
+      imxvct->keep_ratio = g_value_get_boolean(value);
+      break;
     case PROP_VIDEO_WARP_EXTRA_CONTROLS:
       const GstStructure *config = gst_value_get_structure (value);
       if (imxvct->video_warp.extra_controls)
@@ -220,6 +225,9 @@ static void gst_imx_video_convert_get_property (GObject * object,
       break;
     case PROP_VIDEO_WARP_COORD_FILE:
       g_value_set_string (value, imxvct->video_warp.filename);
+      break;
+    case PROP_KEEP_RATIO:
+      g_value_set_boolean(value, imxvct->keep_ratio);
       break;
     case PROP_VIDEO_WARP_EXTRA_CONTROLS:
       gst_value_set_structure (value, imxvct->video_warp.extra_controls);
@@ -726,6 +734,7 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
 static GstCaps* imx_video_convert_fixate_caps(GstBaseTransform *transform,
     GstPadDirection direction, GstCaps *caps, GstCaps *othercaps)
 {
+  GstImxVideoConvert *imxvct = (GstImxVideoConvert *)(transform);
   GstStructure *ins, *outs;
   GValue const *from_par, *to_par;
   GValue fpar = { 0, }, tpar = { 0, };
@@ -796,7 +805,18 @@ static GstCaps* imx_video_convert_fixate_caps(GstBaseTransform *transform,
     GST_DEBUG("dimensions already set to %dx%d", w, h);
 
     if (!gst_value_is_fixed(to_par)) {
-      if (gst_video_calculate_display_ratio(&dar_n, &dar_d,
+      /* If set keep_ratio=true and downstream doesn't specify pixel-aspect-ratio,
+       * default use 1/1. This refers to the videoaggregator(imxcompositor) which
+       * always sets pixel-aspect-ratio=1/1 for output caps. */
+      if (imxvct->keep_ratio) {
+        if (gst_structure_has_field(outs, "pixel-aspect-ratio")) {
+          gst_structure_fixate_field_nearest_fraction(outs,
+                                        "pixel-aspect-ratio", 1, 1);
+        } else {
+          gst_structure_set(outs, "pixel-aspect-ratio",
+                            GST_TYPE_FRACTION, 1, 1, NULL);
+        }
+      } else if (gst_video_calculate_display_ratio(&dar_n, &dar_d,
           from_w, from_h, from_par_n, from_par_d, w, h)) {
         GST_DEBUG("fixating to_par to %d/%d", dar_n, dar_d);
 
@@ -1942,10 +1962,42 @@ static GstFlowReturn imx_video_convert_transform(GstBaseTransform * trans, GstBu
     dst.mem = gst_buffer_query_phymem_block (outbuf);
   dst.alpha = 0xFF;
   dst.interlace_type = IMX_2D_INTERLACE_PROGRESSIVE;
-  dst.crop.x = 0;
-  dst.crop.y = 0;
-  dst.crop.w = filter->out_info.width;
-  dst.crop.h = filter->out_info.height;
+
+  if (imxvct->keep_ratio) {
+    GstVideoRectangle s_rect, d_rect, result;
+    s_rect.x = s_rect.y = 0;
+    s_rect.w = src.crop.w;
+    s_rect.h = src.crop.h;
+    d_rect.x = d_rect.y = 0;
+    d_rect.w = filter->out_info.width;
+    d_rect.h = filter->out_info.height;
+    if (imxvct->rotate == IMX_2D_ROTATION_90 ||
+        imxvct->rotate == IMX_2D_ROTATION_270) {
+      gint tmp = d_rect.w;
+      d_rect.w = d_rect.h;
+      d_rect.h = tmp;
+    }
+
+    gst_video_sink_center_rect (s_rect, d_rect, &result, TRUE);
+
+    if (imxvct->rotate == IMX_2D_ROTATION_90 ||
+        imxvct->rotate == IMX_2D_ROTATION_270) {
+      dst.crop.x = result.y;
+      dst.crop.y = result.x;
+      dst.crop.w = result.h;
+      dst.crop.h = result.w;
+    } else {
+      dst.crop.x = result.x;
+      dst.crop.y = result.y;
+      dst.crop.w = result.w;
+      dst.crop.h = result.h;
+    }
+  } else {
+    dst.crop.x = 0;
+    dst.crop.y = 0;
+    dst.crop.w = filter->out_info.width;
+    dst.crop.h = filter->out_info.height;
+  }
 
   out_crop = gst_buffer_get_video_crop_meta(outbuf);
   if (out_crop != NULL) {
@@ -2293,6 +2345,12 @@ gst_imx_video_convert_class_init (GstImxVideoConvertClass * klass)
             GST_TYPE_STRUCTURE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
   }
 
+  g_object_class_install_property (gobject_class, PROP_KEEP_RATIO,
+      g_param_spec_boolean ("keep-ratio", "Keep Aspect Ratio",
+        "Keep the video aspect ratio after resize",
+        GST_IMX_VIDEO_KEEP_RATIO_DEFAULT,
+        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
   in_plugin->destroy(dev);
 
   base_transform_class->src_event =
@@ -2351,6 +2409,7 @@ gst_imx_video_convert_init (GstImxVideoConvert * imxvct)
       memset (&imxvct->video_warp, 0, sizeof(Imx2DVideoWarp));
       imxvct->video_warp.enable = GST_IMX_VIDEO_WARP_DEFAULT;
       imxvct->video_warp.map_format = GST_IMX_VIDEO_WARP_MAP_DEFAULT;
+      imxvct->keep_ratio = GST_IMX_VIDEO_KEEP_RATIO_DEFAULT;
       imxvct->total_time = 0;
       imxvct->total_frames = 0;
     }
