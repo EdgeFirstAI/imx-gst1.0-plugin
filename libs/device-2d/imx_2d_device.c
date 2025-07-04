@@ -153,6 +153,7 @@ gboolean imx_2d_device_video_info_from_caps (GstCaps * caps, Imx2DVideoInfo *inf
   GstVideoFormat out_fmt = GST_VIDEO_FORMAT_UNKNOWN;
   const gchar *s;
   GstVideoInfo video_info;
+  gboolean is_drm_format = FALSE;
 
   if (!caps || !info) {
     return FALSE;
@@ -165,8 +166,10 @@ gboolean imx_2d_device_video_info_from_caps (GstCaps * caps, Imx2DVideoInfo *inf
 
     if (!g_strcmp0 (gst_structure_get_string (st, "format"), "DMA_DRM")) {
       format = gst_structure_get_value (st, "drm-format");
+      is_drm_format = TRUE;
     } else {
       format = gst_structure_get_value (st, "format");
+      is_drm_format = FALSE;
     }
 
     /* Check the selected caps if it has the fixed format */
@@ -191,7 +194,19 @@ gboolean imx_2d_device_video_info_from_caps (GstCaps * caps, Imx2DVideoInfo *inf
 
     /* Get the fixed format in the selected caps */
     if (G_VALUE_HOLDS_STRING (format)) {
-      fmt_name = g_value_get_string (format);
+      if (is_drm_format) {
+        guint32 fourcc;
+        guint64 modifier;
+        GstVideoFormat gst_format;
+
+        fourcc = gst_video_dma_drm_fourcc_from_string (g_value_get_string (format), &modifier);
+        gst_format = gst_video_dma_drm_fourcc_to_format (fourcc);
+        if (gst_format == GST_VIDEO_FORMAT_UNKNOWN)
+          return FALSE;
+        fmt_name = gst_video_format_to_string(gst_format);
+      } else {
+        fmt_name = g_value_get_string (format);
+      }
 
       if (out_fmt == GST_VIDEO_FORMAT_UNKNOWN) {
         /* Record the first fixed format */

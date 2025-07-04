@@ -318,13 +318,87 @@ imx_video_convert_src_event(GstBaseTransform *transform, GstEvent *event)
   return GST_BASE_TRANSFORM_CLASS(parent_class)->src_event(transform, event);
 }
 
+static GstCaps *imx_video_convert_add_drm_caps(GstCaps *caps, GList* list)
+{
+  gint i, caps_size;
+  GstCapsFeatures *has_f;
+  GstStructure *st;
+  gboolean has_drm_caps = FALSE;
+  GstCaps *new_caps = NULL;
+  GValue dma_drm_fmts = G_VALUE_INIT;
+  GValue gval = G_VALUE_INIT;
+  gchar *drm_fmt_str;
+
+  /* Check whether drm caps is added already */
+  if (caps && !gst_caps_is_empty(caps)) {
+    caps_size = gst_caps_get_size(caps);
+
+    for (i = 0; i < caps_size; i++) {
+      has_f = gst_caps_get_features(caps, i);
+      st = gst_caps_get_structure(caps, i);
+
+      if (has_f && gst_caps_features_contains(has_f,
+          GST_CAPS_FEATURE_MEMORY_DMABUF)) {
+        has_drm_caps = TRUE;
+        break;
+      }
+
+      if (!g_strcmp0 (gst_structure_get_string (st, "format"), "DMA_DRM")) {
+        GstCapsFeatures *f =
+          gst_caps_features_new_static_str (GST_CAPS_FEATURE_MEMORY_DMABUF, NULL);
+        gst_caps_set_features (caps, i, f);
+        has_drm_caps = TRUE;
+        break;
+      }
+    }
+  }
+
+  if (!has_drm_caps) {
+    g_value_init (&dma_drm_fmts, GST_TYPE_LIST);
+    g_value_init (&gval, G_TYPE_STRING);
+
+    for (i = 0; i < g_list_length (list); i++) {
+      GstVideoFormat fmt = (GstVideoFormat)g_list_nth_data(list, i);
+      guint32 drm_fourcc = gst_video_dma_drm_fourcc_from_format (fmt);
+      if (drm_fourcc == DRM_FORMAT_INVALID)
+        continue;
+
+      drm_fmt_str =
+          gst_video_dma_drm_fourcc_to_string (drm_fourcc, DRM_FORMAT_MOD_LINEAR);
+      if (!drm_fmt_str)
+        continue;
+
+      g_value_set_string (&gval, drm_fmt_str);
+      gst_value_list_append_value (&dma_drm_fmts, &gval);
+    }
+
+    new_caps = gst_caps_from_string ("video/x-raw(memory:DMABuf)");
+    gst_caps_set_simple (new_caps, "format", G_TYPE_STRING, "DMA_DRM", NULL);
+    if (gst_value_list_get_size (&dma_drm_fmts) > 0) {
+      gst_caps_set_value (new_caps, "drm-format", &dma_drm_fmts);
+    }
+    g_value_unset (&dma_drm_fmts);
+    g_value_unset (&gval);
+
+    if (!gst_caps_is_subset(new_caps, caps)) {
+      gst_caps_append (new_caps, caps);
+      return new_caps;
+    } else {
+      gst_caps_unref(new_caps);
+    }
+  }
+
+  return caps;
+}
+
 static GstCaps* imx_video_convert_transform_caps(GstBaseTransform *transform,
                      GstPadDirection direction, GstCaps *caps, GstCaps *filter)
 {
   GstImxVideoConvert *imxvct = (GstImxVideoConvert *) (transform);
   GstCaps *tmp, *tmp2, *result;
   GstStructure *st;
-  gint i, n;
+  gint i, n, caps_index;
+  GstCapsFeatures *has_f, *f;
 
   GST_DEBUG("transform caps: %" GST_PTR_FORMAT, caps);
   GST_DEBUG("filter: %" GST_PTR_FORMAT, filter);
@@ -335,6 +409,7 @@ static GstCaps* imx_video_convert_transform_caps(GstBaseTransform *transform,
   tmp = gst_caps_new_empty();
   n = gst_caps_get_size(caps);
 
+  caps_index = 0;
   for (i = 0; i < n; i++) {
     st = gst_caps_get_structure(caps, i);
 
@@ -357,7 +432,11 @@ static GstCaps* imx_video_convert_transform_caps(GstBaseTransform *transform,
             "height", GST_TYPE_INT_RANGE, 64, G_MAXINT32, NULL);
     }
 
-    gst_structure_remove_fields(st, "format", NULL);
+    if (!g_strcmp0 (gst_structure_get_string (st, "format"), "DMA_DRM")) {
+      gst_structure_remove_fields(st, "drm-format", NULL);
+    } else {
+      gst_structure_remove_fields(st, "format", NULL);
+    }
 
     /* Remove colorimetry field to support colorimetry conversion
      * if the input and output are different.
@@ -372,9 +451,30 @@ static GstCaps* imx_video_convert_transform_caps(GstBaseTransform *transform,
     }
 
     gst_caps_append_structure(tmp, st);
-  }
 
-  imx_video_overlay_composition_add_caps(tmp);
+    /* Check and append DRM feature if needed */
+    if (!g_strcmp0 (gst_structure_get_string (st, "format"), "DMA_DRM")) {
+      has_f = gst_caps_get_features(caps, i);
+      if (has_f && gst_caps_features_contains(has_f,
+          GST_CAPS_FEATURE_MEMORY_DMABUF)) {
+        f =
+          gst_caps_features_new (GST_CAPS_FEATURE_MEMORY_DMABUF, NULL);
+        gst_caps_set_features (tmp, caps_index, f);
+      }
+    } else {
+      /* Check and append overlay composition feature if needed */
+      has_f = gst_caps_get_features(caps, i);
+      if (has_f && gst_caps_features_contains(has_f,
+          GST_CAPS_FEATURE_MEMORY_SYSTEM_MEMORY)
+          && gst_caps_features_contains(has_f,
+              GST_CAPS_FEATURE_META_GST_VIDEO_OVERLAY_COMPOSITION)) {
+        f = gst_caps_features_new(GST_CAPS_FEATURE_MEMORY_SYSTEM_MEMORY,
+            GST_CAPS_FEATURE_META_GST_VIDEO_OVERLAY_COMPOSITION, NULL);
+        gst_caps_set_features (tmp, caps_index, f);
+      }
+    }
+    caps_index++;
+  }
 
   GST_DEBUG("transformed: %" GST_PTR_FORMAT, tmp);
 
@@ -522,12 +622,13 @@ static GstCaps* imx_video_convert_caps_from_fmt_list(GList* list)
   caps = gst_caps_simplify(caps);
 
   imx_video_overlay_composition_add_caps(caps);
+  caps = imx_video_convert_add_drm_caps (caps, list);
 
   return caps;
 }
 
 static gboolean imx_video_convert_check_format_conversion (GstBaseTransform *transform,
-    GstVideoFormat in_fmt, GstVideoFormat out_fmt, GstCaps *in_caps, GstCaps *out_caps, guint i)
+    GstVideoFormat in_fmt, GstVideoFormat out_fmt, GstCaps *in_caps, GstCaps *out_caps, guint i, guint64 modifier)
 {
   GstImxVideoConvert *imxvct = (GstImxVideoConvert *)(transform);
   Imx2DDevice *device = imxvct->device;
@@ -538,8 +639,25 @@ static gboolean imx_video_convert_check_format_conversion (GstBaseTransform *tra
     GstCaps *select_caps = gst_caps_copy_nth(out_caps, i);
     GstStructure *select_st = gst_caps_get_structure(select_caps, 0);
 
-    gst_structure_set(select_st, "format", G_TYPE_STRING,
+    if (!g_strcmp0 (gst_structure_get_string (select_st, "format"), "DMA_DRM")) {
+      /* Convert to DRM format if needed */
+      guint32 fourcc = gst_video_dma_drm_fourcc_from_format (out_fmt);
+      if (fourcc == DRM_FORMAT_INVALID) {
+        is_support = FALSE;
+        goto done;
+      }
+
+      gchar *drm_fmt_name = gst_video_dma_drm_fourcc_to_string (fourcc, modifier);
+      if (!drm_fmt_name) {
+        is_support = FALSE;
+        goto done;
+      }
+
+      gst_structure_set(select_st, "drm-format", G_TYPE_STRING, drm_fmt_name, NULL);
+    } else {
+      gst_structure_set(select_st, "format", G_TYPE_STRING,
         gst_video_format_to_string(out_fmt), NULL);
+    }
     GST_DEBUG_OBJECT (imxvct, "Check format conversion, select caps: %" GST_PTR_FORMAT, select_caps);
 
     if (!device->check_conversion (device, in_caps, select_caps)) {
@@ -569,6 +687,42 @@ done:
   return is_support;
 }
 
+static gboolean imx_video_convert_set_format_name (GstStructure *structure, const gchar *fmt_name, guint64 modifier)
+{
+  guint32 fourcc;
+  const gchar *drm_fmt_name;
+  GstVideoFormat format;
+
+  if (!structure || !structure)
+    return FALSE;
+
+  if (!g_strcmp0 (gst_structure_get_string (structure, "format"), "DMA_DRM")) {
+    if (!g_strcmp0 (fmt_name, "UNKNOWN")) {
+       gst_structure_set(structure, "drm-format", G_TYPE_STRING, fmt_name, NULL);
+    } else {
+      format = gst_video_format_from_string (fmt_name);
+      /* Check and convert the format if it is not DRM format */
+      if (format != GST_VIDEO_FORMAT_UNKNOWN) {
+        fourcc = gst_video_dma_drm_fourcc_from_format (format);
+        if (fourcc == DRM_FORMAT_INVALID)
+          return FALSE;
+
+        drm_fmt_name = gst_video_dma_drm_fourcc_to_string (fourcc, modifier);
+        if (!drm_fmt_name)
+          return FALSE;
+
+        gst_structure_set(structure, "drm-format", G_TYPE_STRING, drm_fmt_name, NULL);
+      } else {
+        gst_structure_set(structure, "drm-format", G_TYPE_STRING, fmt_name, NULL);
+      }
+    }
+  } else {
+    gst_structure_set(structure, "format", G_TYPE_STRING, fmt_name, NULL);
+  }
+
+  return TRUE;
+}
+
 static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
                                             GstCaps *caps, GstCaps *othercaps)
 {
@@ -583,6 +737,10 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
   gboolean interlace = FALSE;
   GstCaps *new_caps;
   const GValue *color = NULL;
+  guint32 fourcc;
+  guint64 modifier;
+  gboolean is_drm_format = FALSE;
+  const GValue *max_framerate = NULL;
 
   GstImxVideoConvert *imxvct = (GstImxVideoConvert *)(transform);
   Imx2DDevice *device = imxvct->device;
@@ -619,8 +777,19 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
   gint min_loss = G_MAXINT32;
   gint loss;
   guint i, j;
+  const gchar *drm_fmt_name;
 
-  fmt_name = gst_structure_get_string(ins, "format");
+  if (!g_strcmp0 (gst_structure_get_string (ins, "format"), "DMA_DRM")) {
+    drm_fmt_name = gst_structure_get_string(ins, "drm-format");
+    fourcc = gst_video_dma_drm_fourcc_from_string (drm_fmt_name, &modifier);
+    in_fmt = gst_video_dma_drm_fourcc_to_format (fourcc);
+    if (in_fmt == GST_VIDEO_FORMAT_UNKNOWN)
+      fmt_name = NULL;
+    else
+      fmt_name = gst_video_format_to_string(in_fmt);
+  } else {
+    fmt_name = gst_structure_get_string(ins, "format");
+  }
   if (!fmt_name) {
     gst_caps_unref(new_caps);
     return -1;
@@ -630,10 +799,19 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
 
   in_fmt = gst_video_format_from_string(fmt_name);
   gboolean have_colorimetry = gst_structure_has_field (ins, "colorimetry");
+  gboolean have_max_framerate = gst_structure_has_field (ins, "max-framerate");
 
   for (i = 0; i < gst_caps_get_size(new_caps); i++) {
     tests = gst_caps_get_structure(new_caps, i);
-    format = gst_structure_get_value(tests, "format");
+
+    /* Check whether it's DMA DRM format */
+    if (!g_strcmp0 (gst_structure_get_string (tests, "format"), "DMA_DRM")) {
+      format = gst_structure_get_value (tests, "drm-format");
+      is_drm_format = TRUE;
+    } else {
+      format = gst_structure_get_value(tests, "format");
+      is_drm_format = FALSE;
+    }
     if (!format) {
       gst_caps_unref(new_caps);
       return -1;
@@ -643,7 +821,12 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
       for (j = 0; j < gst_value_list_get_size(format); j++) {
         const GValue *val = gst_value_list_get_value(format, j);
         if (G_VALUE_HOLDS_STRING(val)) {
-          out_fmt = gst_video_format_from_string(g_value_get_string(val));
+          if (is_drm_format) {
+            fourcc = gst_video_dma_drm_fourcc_from_string (g_value_get_string (val), &modifier);
+            out_fmt = gst_video_dma_drm_fourcc_to_format (fourcc);
+          } else {
+            out_fmt = gst_video_format_from_string(g_value_get_string(val));
+          }
           loss = get_format_conversion_loss(transform, in_fmt, out_fmt);
 
           /* Append the colorimetry field if needed */
@@ -652,10 +835,16 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
                 gst_structure_get_value (ins, "colorimetry"));
           }
 
+          /* Append the max-framerate field if needed */
+          if (!gst_structure_has_field(tests, "max-framerate") && have_max_framerate) {
+            gst_structure_set_value(tests, "max-framerate",
+                gst_structure_get_value (ins, "max-framerate"));
+          }
+
           /* Need check if current device and the downstream can accept this format
            * because some devices can only support the specified format conversion */
           if (!imx_video_convert_check_format_conversion (transform, in_fmt, out_fmt,
-              caps, new_caps, i)) {
+              caps, new_caps, i, modifier)) {
             continue;
           }
 
@@ -664,6 +853,8 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
             min_loss = loss;
             if (gst_structure_has_field(tests, "colorimetry"))
               color = gst_structure_get_value(tests, "colorimetry");
+            if (gst_structure_has_field(tests, "max-framerate"))
+              max_framerate = gst_structure_get_value(tests, "max-framerate");
           }
 
           if (min_loss == 0)
@@ -671,7 +862,12 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
         }
       }
     } else if (G_VALUE_HOLDS_STRING(format)) {
-      out_fmt = gst_video_format_from_string(g_value_get_string(format));
+      if (is_drm_format) {
+        fourcc = gst_video_dma_drm_fourcc_from_string (g_value_get_string (format), &modifier);
+        out_fmt = gst_video_dma_drm_fourcc_to_format (fourcc);
+      } else {
+        out_fmt = gst_video_format_from_string(g_value_get_string(format));
+      }
       loss = get_format_conversion_loss(transform, in_fmt, out_fmt);
 
       /* Append the colorimetry field if needed */
@@ -680,10 +876,16 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
             gst_structure_get_value (ins, "colorimetry"));
       }
 
+      /* Append the max-framerate field if needed */
+      if (!gst_structure_has_field(tests, "max-framerate") && have_max_framerate) {
+        gst_structure_set_value(tests, "max-framerate",
+            gst_structure_get_value (ins, "max-framerate"));
+      }
+
       /* Need check if current device and the downstream can accept this format
        * because some devices can only support the specified format conversion */
       if (!imx_video_convert_check_format_conversion (transform, in_fmt, out_fmt,
-          caps, new_caps, i)) {
+          caps, new_caps, i, modifier)) {
         continue;
       };
 
@@ -692,6 +894,8 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
         min_loss = loss;
         if (gst_structure_has_field(tests, "colorimetry"))
           color = gst_structure_get_value(tests, "colorimetry");
+        if (gst_structure_has_field(tests, "max-framerate"))
+          max_framerate = gst_structure_get_value(tests, "max-framerate");
       }
     }
 
@@ -699,14 +903,26 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
       break;
   }
 #else
-  format =
-      gst_structure_get_value(gst_caps_get_structure(new_caps, 0), "format");
-  if (format) {
-    if (GST_VALUE_HOLDS_LIST(format)) {
+  if (gst_video_is_dma_drm_caps (new_caps)) {
+    format =
+    gst_structure_get_value(gst_caps_get_structure(new_caps, 0), "drm-format");
+    if (format & GST_VALUE_HOLDS_LIST(format)) {
       format = gst_value_list_get_value(format, 0);
     }
-    out_fmt = gst_video_format_from_string(g_value_get_string(format));
+
+    fourcc = gst_video_dma_drm_fourcc_from_string (g_value_get_string (format), &modifier);
+    out_fmt = gst_video_dma_drm_fourcc_to_format (fourcc);
     out_info = gst_video_format_get_info(out_fmt);
+  } else {
+    format =
+      gst_structure_get_value(gst_caps_get_structure(new_caps, 0), "format");
+    if (format) {
+      if (GST_VALUE_HOLDS_LIST(format)) {
+        format = gst_value_list_get_value(format, 0);
+      }
+      out_fmt = gst_video_format_from_string(g_value_get_string(format));
+      out_info = gst_video_format_get_info(out_fmt);
+    }
   }
 #endif
 
@@ -717,15 +933,19 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
     if ((gst_structure_get_value(outs, "colorimetry") && color)
         || (have_colorimetry && color))
       gst_structure_set_value(outs, "colorimetry", color);
+
+    if ((gst_structure_get_value(outs, "max-framerate") && max_framerate)
+        || (have_max_framerate && max_framerate))
+      gst_structure_set_value(outs, "max-framerate", max_framerate);
     gst_caps_unref(new_caps);
 
     fmt_name = GST_VIDEO_FORMAT_INFO_NAME(out_info);
-    gst_structure_set(outs, "format", G_TYPE_STRING, fmt_name, NULL);
+    imx_video_convert_set_format_name (outs, fmt_name, modifier);
     GST_LOG("out format %s", fmt_name);
     return 0;
   } else {
     gst_caps_unref(new_caps);
-    gst_structure_set(outs, "format", G_TYPE_STRING, "UNKNOWN", NULL);
+    imx_video_convert_set_format_name (outs, "UNKNOWN", modifier);
     GST_LOG("out format not match");
     return -1;
   }
@@ -1097,8 +1317,14 @@ imx_video_convert_set_pool_alignment(GstImxVideoConvert *imxvct, GstCaps *caps, 
   GstStructure *config = gst_buffer_pool_get_config(pool);
   Imx2DDevice *device = imxvct->device;
   GstVideoFilter *filter = GST_VIDEO_FILTER_CAST(imxvct);
+  GstVideoInfoDmaDrm drm_info;
 
-  gst_video_info_from_caps (&info, caps);
+  if (gst_video_is_dma_drm_caps (caps)) {
+    if (gst_video_info_dma_drm_from_caps (&drm_info, caps))
+      gst_video_info_dma_drm_to_video_info (&drm_info, &info);
+  } else {
+    gst_video_info_from_caps (&info, caps);
+  }
 
   memset (&alignment, 0, sizeof (GstVideoAlignment));
   memset (&pool_alignment, 0, sizeof (GstVideoAlignment));
@@ -1263,8 +1489,16 @@ imx_video_convert_propose_allocation(GstBaseTransform *transform,
       return FALSE;
     }
 
-    if (!gst_video_info_from_caps (&info, caps))
+    GstVideoInfoDmaDrm drm_info;
+    if (gst_video_is_dma_drm_caps (caps)) {
+      if (!gst_video_info_dma_drm_from_caps (&drm_info, caps))
+        return FALSE;
+      if (!gst_video_info_dma_drm_to_video_info (&drm_info, &info))
+        return FALSE;
+    } else {
+      if (!gst_video_info_from_caps (&info, caps))
       return FALSE;
+    }
 
     size = GST_VIDEO_INFO_SIZE (&info);
     GST_IMX_CONVERT_UNREF_BUFFER (imxvct->in_buf);
@@ -1311,10 +1545,17 @@ static gboolean imx_video_convert_decide_allocation(GstBaseTransform *transform,
   GstAllocator *allocator = NULL;
   Imx2DAlignInfo align_info;
   GstVideoFilter *filter = GST_VIDEO_FILTER_CAST(transform);
+  GstVideoInfoDmaDrm drm_info;
 
   gst_query_parse_allocation(query, &outcaps, NULL);
   gst_video_info_init(&vinfo);
-  gst_video_info_from_caps(&vinfo, outcaps);
+
+  if (gst_video_is_dma_drm_caps (outcaps)) {
+    if (gst_video_info_dma_drm_from_caps (&drm_info, outcaps))
+      gst_video_info_dma_drm_to_video_info (&drm_info, &vinfo);
+  } else {
+    gst_video_info_from_caps(&vinfo, outcaps);
+  }
   num = gst_query_get_n_allocation_pools(query);
   size = vinfo.size;
 
@@ -1412,9 +1653,22 @@ static gboolean imx_video_convert_set_info(GstVideoFilter *filter,
   Imx2DDevice *device = imxvct->device;
   GstStructure *ins, *outs;
   const gchar *from_interlace;
+  GstVideoInfoDmaDrm drm_info;
 
   if (!device)
     return FALSE;
+
+  gst_video_info_dma_drm_init (&drm_info);
+  if (gst_video_is_dma_drm_caps (in)) {
+    if (gst_video_info_dma_drm_from_caps (&drm_info, in))
+      gst_video_info_dma_drm_to_video_info (&drm_info, in_info);
+  }
+
+  gst_video_info_dma_drm_init (&drm_info);
+  if (gst_video_is_dma_drm_caps (out)) {
+    if (gst_video_info_dma_drm_from_caps (&drm_info, out))
+      gst_video_info_dma_drm_to_video_info (&drm_info, out_info);
+  }
 
   ins = gst_caps_get_structure(in, 0);
   outs = gst_caps_get_structure(out, 0);
