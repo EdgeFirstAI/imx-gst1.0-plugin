@@ -1754,7 +1754,11 @@ static GstFlowReturn imx_video_convert_transform(GstBaseTransform * trans, GstBu
       imxvct->in_video_align.padding_bottom = phymemmeta->y_padding;
       GST_DEBUG_OBJECT (imxvct, "physical memory meta x_padding: %d y_padding: %d",
           phymemmeta->x_padding, phymemmeta->y_padding);
-    } else if (imxvct->in_pool && gst_buffer_pool_is_active (imxvct->in_pool)) {
+    } else if (imxvct->in_pool && gst_buffer_pool_is_active (imxvct->in_pool) &&
+        imxvct->in_pool == input_buf->pool) {
+      /* Apply the alignment information only if
+       * the buffer is allocated from own pool.
+       */
       GstStructure *config = gst_buffer_pool_get_config (imxvct->in_pool);
       memset (&imxvct->in_video_align, 0, sizeof(GstVideoAlignment));
 
