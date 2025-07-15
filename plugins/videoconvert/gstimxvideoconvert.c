@@ -436,25 +436,6 @@ static gint get_format_conversion_loss(GstBaseTransform * base,
     return G_MAXINT32;
   }
 
-  /* Only OpenCL on DPU platform can convert NV12_10LE to NV12) */
-  if (HAS_DPU ()) {
-    if (in_name == GST_VIDEO_FORMAT_NV12_10BE_8L128 && out_name == GST_VIDEO_FORMAT_NV12)
-      return 0;
-    /* g2d-dpu can do YUY2 to NV12 convert */
-    if (in_name == GST_VIDEO_FORMAT_YUY2
-        && out_name == GST_VIDEO_FORMAT_NV12)
-      return 0;
-    if (in_name == GST_VIDEO_FORMAT_NV12_10LE40
-        && out_name == GST_VIDEO_FORMAT_NV12)
-      return 0;
-    else if (in_name != GST_VIDEO_FORMAT_NV12_10LE40
-        && out_name == GST_VIDEO_FORMAT_NV12) {
-      if (device->device_type != IMX_2D_DEVICE_OCL) {
-        return G_MAXINT32;
-      }
-    }
-  }
-
   /* accept input format immediately without loss */
   if (in_info == out_info) {
     GST_LOG("same format %s", GST_VIDEO_FORMAT_INFO_NAME(in_info));

@@ -835,20 +835,6 @@ static gboolean imx_g2d_check_conversion (Imx2DDevice *device, GstCaps *input_ca
     }
   }
 
-  /* Check the specified conversion map */
-  if (out_map->gst_video_format == GST_VIDEO_FORMAT_NV12) {
-    if (in_map->gst_video_format == GST_VIDEO_FORMAT_YUY2
-        || in_map->gst_video_format == GST_VIDEO_FORMAT_NV12_10BE_8L128
-        || in_map->gst_video_format == GST_VIDEO_FORMAT_NV12_10LE40) {
-      return TRUE;
-    } else {
-      GST_INFO ("format (%s) -> format (%s) is not supported.",
-          gst_video_format_to_string(in_map->gst_video_format),
-          gst_video_format_to_string(out_map->gst_video_format));
-      return FALSE;
-    }
-  }
-
   return TRUE;
 }
 
