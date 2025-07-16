@@ -415,7 +415,6 @@ static gint get_format_conversion_loss(GstBaseTransform * base,
   const GstVideoFormatInfo *in_info = gst_video_format_get_info(in_name);
   const GstVideoFormatInfo *out_info = gst_video_format_get_info(out_name);
   GstImxVideoConvert *imxvct = (GstImxVideoConvert *)(base);
-  Imx2DDevice *device = imxvct->device;
 
   if (!in_info || !out_info)
     return G_MAXINT32;
