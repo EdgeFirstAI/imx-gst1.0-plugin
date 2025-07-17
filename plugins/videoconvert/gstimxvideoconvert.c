@@ -1091,8 +1091,9 @@ static void
 imx_video_convert_set_pool_alignment(GstImxVideoConvert *imxvct, GstCaps *caps, GstBufferPool *pool, gboolean is_output)
 {
   GstVideoInfo info;
-  GstVideoAlignment alignment;
+  GstVideoAlignment pool_alignment, alignment;
   Imx2DAlignInfo align_info;
+  gint w, h, padding_w, padding_h;
   GstStructure *config = gst_buffer_pool_get_config(pool);
   Imx2DDevice *device = imxvct->device;
   GstVideoFilter *filter = GST_VIDEO_FILTER_CAST(imxvct);
@@ -1100,9 +1101,14 @@ imx_video_convert_set_pool_alignment(GstImxVideoConvert *imxvct, GstCaps *caps, 
   gst_video_info_from_caps (&info, caps);
 
   memset (&alignment, 0, sizeof (GstVideoAlignment));
+  memset (&pool_alignment, 0, sizeof (GstVideoAlignment));
 
-  gint w = GST_VIDEO_INFO_WIDTH (&info);
-  gint h = GST_VIDEO_INFO_HEIGHT (&info);
+  gst_buffer_pool_config_get_video_alignment (config, &pool_alignment);
+
+  w = GST_VIDEO_INFO_WIDTH (&info);
+  h = GST_VIDEO_INFO_HEIGHT (&info);
+  padding_w = w + pool_alignment.padding_right;
+  padding_h = h + pool_alignment.padding_bottom;
 
   align_info.is_output = is_output;
   if (device->get_alignment
@@ -1114,15 +1120,21 @@ imx_video_convert_set_pool_alignment(GstImxVideoConvert *imxvct, GstCaps *caps, 
       align_info.height_align = ALIGNMENT;
     }
 
-    if (!ISALIGNED (w, align_info.width_align)
-        || !ISALIGNED (h, align_info.height_align)) {
-      alignment.padding_right = SIZE_ALIGN (w, align_info.width_align) - w;
-      alignment.padding_bottom = SIZE_ALIGN (h, align_info.height_align) - h;
+    if (!ISALIGNED (padding_w, align_info.width_align)
+        || !ISALIGNED (padding_h, align_info.height_align)) {
+      alignment.padding_right = SIZE_ALIGN (padding_w, align_info.width_align) - w;
+      alignment.padding_bottom = SIZE_ALIGN (padding_h, align_info.height_align) - h;
+    } else {
+      alignment.padding_right = pool_alignment.padding_right;
+      alignment.padding_bottom = pool_alignment.padding_bottom;
     }
   } else {
-    if (!ISALIGNED (w, ALIGNMENT) || !ISALIGNED (h, ALIGNMENT)) {
-      alignment.padding_right = ALIGNTO (w, ALIGNMENT) - w;
-      alignment.padding_bottom = ALIGNTO (h, ALIGNMENT) - h;
+    if (!ISALIGNED (padding_w, ALIGNMENT) || !ISALIGNED (padding_h, ALIGNMENT)) {
+      alignment.padding_right = ALIGNTO (padding_w, ALIGNMENT) - w;
+      alignment.padding_bottom = ALIGNTO (padding_h, ALIGNMENT) - h;
+    } else {
+      alignment.padding_right = pool_alignment.padding_right;
+      alignment.padding_bottom = pool_alignment.padding_bottom;
     }
     GST_DEBUG_OBJECT (imxvct, "Set padding info by default");
   }
