@@ -1328,12 +1328,14 @@ static gboolean imx_video_convert_decide_allocation(GstBaseTransform *transform,
       if (pool) {
         config = gst_buffer_pool_get_config(pool);
         gst_buffer_pool_config_get_allocator(config, &allocator, NULL);
-        if (allocator && GST_IS_ALLOCATOR_PHYMEM(allocator)) {
+        if (allocator
+          && (GST_IS_DMABUFHEAPS_ALLOCATOR(allocator)
+          || GST_IS_ALLOCATOR_PHYMEM(allocator))) {
           size = MAX(size, vinfo.size);
           new_pool = FALSE;
           break;
         } else {
-          GST_LOG_OBJECT (imxvct, "no phy allocator in output pool (%p)", pool);
+          GST_DEBUG_OBJECT (imxvct, "no phy or dma allocator in output pool (%p)", pool);
         }
 
         if (config) {
