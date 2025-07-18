@@ -415,6 +415,7 @@ static gint get_format_conversion_loss(GstBaseTransform * base,
   const GstVideoFormatInfo *in_info = gst_video_format_get_info(in_name);
   const GstVideoFormatInfo *out_info = gst_video_format_get_info(out_name);
   GstImxVideoConvert *imxvct = (GstImxVideoConvert *)(base);
+  Imx2DDevice *device = imxvct->device;
 
   if (!in_info || !out_info)
     return G_MAXINT32;
@@ -442,6 +443,13 @@ static gint get_format_conversion_loss(GstBaseTransform * base,
   }
 
   loss = SCORE_FORMAT_CHANGE;
+
+  /* Reduce the priority of NV12 output on 8q platform */
+  if (IS_IMX8Q() && device->device_type == IMX_2D_DEVICE_G2D) {
+    if (out_name == GST_VIDEO_FORMAT_NV12)
+      loss = G_MAXINT32 - 1;
+    goto done;
+  }
 
   if ((out_flags & PALETTE_MASK) != (in_flags & PALETTE_MASK)) {
     loss += SCORE_PALETTE_CHANGE;
@@ -478,6 +486,7 @@ static gint get_format_conversion_loss(GstBaseTransform * base,
       loss += SCORE_DEPTH_LOSS;
   }
 
+done:
   GST_LOG("%s -> %s, loss = %d", GST_VIDEO_FORMAT_INFO_NAME(in_info),
                   GST_VIDEO_FORMAT_INFO_NAME(out_info), loss);
   return loss;
