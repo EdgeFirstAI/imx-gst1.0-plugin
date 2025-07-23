@@ -217,6 +217,8 @@ gboolean imx_2d_device_video_info_from_caps (GstCaps * caps, Imx2DVideoInfo *inf
         }
 
         info->fmt = GST_VIDEO_INFO_FORMAT(&video_info);
+        info->w = GST_VIDEO_INFO_WIDTH(&video_info);
+        info->h = GST_VIDEO_INFO_HEIGHT(&video_info);
         switch (video_info.colorimetry.range) {
           case GST_VIDEO_COLOR_RANGE_0_255:
             info->colorimetry.range = IMX_2D_COLOR_RANGE_FULL;
@@ -270,6 +272,9 @@ gboolean imx_2d_device_video_info_from_caps (GstCaps * caps, Imx2DVideoInfo *inf
     memset (info, 0, sizeof (Imx2DVideoInfo));
     return FALSE;
   } else {
+    GST_TRACE ("Update info, fmt:%d, %dx%d, range:%d, matrix:%d interlace:%d",
+        info->fmt, info->w, info->h, info->colorimetry.range,
+        info->colorimetry.matrix, info->interlace_type);
     return TRUE;
   }
 }
