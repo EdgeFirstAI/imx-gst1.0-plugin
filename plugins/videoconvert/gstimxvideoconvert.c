@@ -628,7 +628,7 @@ static GstCaps* imx_video_convert_caps_from_fmt_list(GList* list)
 }
 
 static gboolean imx_video_convert_check_format_conversion (GstBaseTransform *transform,
-    GstVideoFormat in_fmt, GstVideoFormat out_fmt, GstCaps *in_caps, GstCaps *out_caps, guint i, guint64 modifier)
+    GstCaps *in_caps, GstCaps *out_caps)
 {
   GstImxVideoConvert *imxvct = (GstImxVideoConvert *)(transform);
   Imx2DDevice *device = imxvct->device;
@@ -636,54 +636,29 @@ static gboolean imx_video_convert_check_format_conversion (GstBaseTransform *tra
 
   if ((device->device_type == IMX_2D_DEVICE_OCL)
       || ((device->device_type == IMX_2D_DEVICE_G2D) && HAS_DPU())) {
-    GstCaps *select_caps = gst_caps_copy_nth(out_caps, i);
-    GstStructure *select_st = gst_caps_get_structure(select_caps, 0);
-
-    if (!g_strcmp0 (gst_structure_get_string (select_st, "format"), "DMA_DRM")) {
-      /* Convert to DRM format if needed */
-      guint32 fourcc = gst_video_dma_drm_fourcc_from_format (out_fmt);
-      if (fourcc == DRM_FORMAT_INVALID) {
-        is_support = FALSE;
-        goto done;
-      }
-
-      gchar *drm_fmt_name = gst_video_dma_drm_fourcc_to_string (fourcc, modifier);
-      if (!drm_fmt_name) {
-        is_support = FALSE;
-        goto done;
-      }
-
-      gst_structure_set(select_st, "drm-format", G_TYPE_STRING, drm_fmt_name, NULL);
-    } else {
-      gst_structure_set(select_st, "format", G_TYPE_STRING,
-        gst_video_format_to_string(out_fmt), NULL);
-    }
-    GST_DEBUG_OBJECT (imxvct, "Check format conversion, select caps: %" GST_PTR_FORMAT, select_caps);
-
-    if (!device->check_conversion (device, in_caps, select_caps)) {
-      GST_DEBUG_OBJECT (imxvct, "Current device can't support conversion: %d->%d", in_fmt, out_fmt);
+    if (!device->check_conversion (device, in_caps, out_caps)) {
+      GST_DEBUG_OBJECT (imxvct, "Current device can't support conversion");
       is_support = FALSE;
       goto done;
     }
 
-    if (!gst_caps_is_fixed (select_caps)) {
-      select_caps = gst_caps_fixate (select_caps);
-      GST_DEBUG("fixated select_caps to %" GST_PTR_FORMAT, select_caps);
-      if (!gst_caps_is_fixed (select_caps)) {
-        GST_DEBUG("Not fixed caps: %" GST_PTR_FORMAT, select_caps);
+    if (!gst_caps_is_fixed (out_caps)) {
+      out_caps = gst_caps_fixate (out_caps);
+      GST_DEBUG("fixated out caps to %" GST_PTR_FORMAT, out_caps);
+      if (!gst_caps_is_fixed (out_caps)) {
+        GST_DEBUG("Not fixed caps: %" GST_PTR_FORMAT, out_caps);
         is_support = FALSE;
         goto done;
       }
     }
 
-    if (!gst_pad_peer_query_accept_caps (GST_BASE_TRANSFORM_SRC_PAD (transform), select_caps)) {
-      GST_DEBUG_OBJECT (imxvct, "Downstream can't support conversion: %d->%d", in_fmt, out_fmt);
+    if (!gst_pad_peer_query_accept_caps (GST_BASE_TRANSFORM_SRC_PAD (transform), out_caps)) {
+      GST_DEBUG_OBJECT (imxvct, "Downstream can't accept the caps %" GST_PTR_FORMAT, out_caps);
       is_support = FALSE;
     }
-done:
-  gst_caps_unref (select_caps);
   }
 
+done:
   return is_support;
 }
 
@@ -778,6 +753,8 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
   gint loss;
   guint i, j;
   const gchar *drm_fmt_name;
+  GstCaps *select_caps;
+  GstStructure *select_st;
 
   if (!g_strcmp0 (gst_structure_get_string (ins, "format"), "DMA_DRM")) {
     drm_fmt_name = gst_structure_get_string(ins, "drm-format");
@@ -819,12 +796,18 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
 
     if (GST_VALUE_HOLDS_LIST(format)) {
       for (j = 0; j < gst_value_list_get_size(format); j++) {
+        /* Create caps to check the conversion */
+        select_caps = gst_caps_copy_nth(new_caps, i);
+        select_st = gst_caps_get_structure(select_caps, 0);
+
         const GValue *val = gst_value_list_get_value(format, j);
         if (G_VALUE_HOLDS_STRING(val)) {
           if (is_drm_format) {
+            gst_structure_set(select_st, "drm-format", G_TYPE_STRING, g_value_get_string (val), NULL);
             fourcc = gst_video_dma_drm_fourcc_from_string (g_value_get_string (val), &modifier);
             out_fmt = gst_video_dma_drm_fourcc_to_format (fourcc);
           } else {
+            gst_structure_set(select_st, "format", G_TYPE_STRING, g_value_get_string (val), NULL);
             out_fmt = gst_video_format_from_string(g_value_get_string(val));
           }
           loss = get_format_conversion_loss(transform, in_fmt, out_fmt);
@@ -841,11 +824,13 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
                 gst_structure_get_value (ins, "max-framerate"));
           }
 
-          /* Need check if current device and the downstream can accept this format
-           * because some devices can only support the specified format conversion */
-          if (!imx_video_convert_check_format_conversion (transform, in_fmt, out_fmt,
-              caps, new_caps, i, modifier)) {
+          /* Need check if current device and the downstream can accept this caps
+           * because some devices can only support the specified conversion */
+          if (!imx_video_convert_check_format_conversion (transform, caps, select_caps)) {
+            gst_caps_unref(select_caps);
             continue;
+          } else {
+            gst_caps_unref(select_caps);
           }
 
           if (loss < min_loss) {
@@ -862,10 +847,16 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
         }
       }
     } else if (G_VALUE_HOLDS_STRING(format)) {
+      /* Create caps to check conversion if needed */
+      select_caps = gst_caps_copy_nth(new_caps, i);
+      select_st = gst_caps_get_structure(select_caps, 0);
+
       if (is_drm_format) {
+        gst_structure_set(select_st, "drm-format", G_TYPE_STRING, g_value_get_string (format), NULL);
         fourcc = gst_video_dma_drm_fourcc_from_string (g_value_get_string (format), &modifier);
         out_fmt = gst_video_dma_drm_fourcc_to_format (fourcc);
       } else {
+        gst_structure_set(select_st, "format", G_TYPE_STRING, g_value_get_string (format), NULL);
         out_fmt = gst_video_format_from_string(g_value_get_string(format));
       }
       loss = get_format_conversion_loss(transform, in_fmt, out_fmt);
@@ -882,12 +873,14 @@ static guint imx_video_convert_fixate_format_caps(GstBaseTransform *transform,
             gst_structure_get_value (ins, "max-framerate"));
       }
 
-      /* Need check if current device and the downstream can accept this format
-       * because some devices can only support the specified format conversion */
-      if (!imx_video_convert_check_format_conversion (transform, in_fmt, out_fmt,
-          caps, new_caps, i, modifier)) {
+      /* Need check if current device and the downstream can accept this caps
+       * because some devices can only support the specified conversion */
+      if (!imx_video_convert_check_format_conversion (transform, caps, select_caps)) {
+        gst_caps_unref(select_caps);
         continue;
-      };
+      } else {
+        gst_caps_unref(select_caps);
+      }
 
       if (loss < min_loss) {
         out_info = gst_video_format_get_info(out_fmt);
