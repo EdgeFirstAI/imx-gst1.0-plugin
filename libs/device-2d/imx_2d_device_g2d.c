@@ -978,19 +978,25 @@ static GList* imx_g2d_get_supported_fmts_of_capability(Imx2DDevice* device, Imx2
 static gboolean imx_g2d_get_alignment (Imx2DDevice* device, GstVideoInfo *in_info,
   GstVideoInfo *out_info, Imx2DAlignInfo *align_info)
 {
+  const G2dFmtMap *out_map = NULL;
   gboolean ret = FALSE;
 
   if (!device || !in_info || !out_info || !align_info)
     return FALSE;
 
-  if (HAS_DPU()) {
-    align_info->is_apply = TRUE;
-    align_info->width_align = 4;
-    align_info->height_align = 4;
-    align_info->size_align = align_info->width_align * align_info->height_align;
-    ret = TRUE;
-  } else {
-    align_info->is_apply = FALSE;
+  align_info->is_apply = FALSE;
+  /* Apply alignment only for RGB output on DPU
+   * platform for some application requirements.
+   */
+  if (align_info->is_output && HAS_DPU()) {
+    out_map = imx_g2d_get_format(GST_VIDEO_INFO_FORMAT(out_info));
+    if (out_map && out_map->g2d_format == G2D_RGB888) {
+      align_info->is_apply = TRUE;
+      align_info->width_align = 4;
+      align_info->height_align = 4;
+      align_info->size_align = align_info->width_align * align_info->height_align;
+      ret = TRUE;
+    }
   }
 
   return ret;
