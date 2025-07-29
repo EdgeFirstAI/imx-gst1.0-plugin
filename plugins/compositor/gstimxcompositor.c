@@ -133,8 +133,6 @@
 #include "gstimxcompositor.h"
 #include "gstimxcompositorpad.h"
 
-//#define USE_GST_VIDEO_SAMPLE_CONVERT  //bad performance
-
 #define IMX_COMPOSITOR_INPUT_POOL_MIN_BUFFERS   1
 #define IMX_COMPOSITOR_INPUT_POOL_MAX_BUFFERS   30
 #define IMX_COMPOSITOR_OUTPUT_POOL_MIN_BUFFERS   3
@@ -1248,224 +1246,6 @@ static gint gst_imxcompositor_config_src(GstImxCompositor *imxcomp,
   return 0;
 }
 
-#ifdef USE_GST_VIDEO_SAMPLE_CONVERT
-static void
-gst_imxcompositor_fill_background(Imx2DFrame *dst, guint RGBA8888)
-{
-  GstVideoInfo vinfo;
-  GstCaps *from_caps, *to_caps;
-  GstBuffer *from_buffer, *to_buffer;
-  GstSample *from_sample, *to_sample;
-  gint i;
-  GstMapInfo map;
-
-  from_buffer = gst_buffer_new_and_alloc (dst->info.stride * dst->info.h * 4);
-
-  gst_buffer_map (from_buffer, &map, GST_MAP_WRITE);
-  for (i = 0; i < dst->info.stride * dst->info.h; i++) {
-    map.data[4 * i + 0] = RGBA8888 & 0x000000FF;
-    map.data[4 * i + 1] = (RGBA8888 & 0x0000FF00) >> 8;
-    map.data[4 * i + 2] = (RGBA8888 & 0x00FF0000) >> 16;
-    map.data[4 * i + 3] = (RGBA8888 & 0xFF000000) >> 24;
-  }
-  gst_buffer_unmap (from_buffer, &map);
-
-  gst_video_info_init (&vinfo);
-  gst_video_info_set_format (&vinfo, GST_VIDEO_FORMAT_RGBA,
-      dst->info.w, dst->info.h);
-  from_caps = gst_video_info_to_caps (&vinfo);
-  from_sample = gst_sample_new (from_buffer, from_caps, NULL, NULL);
-
-  gst_video_info_set_format (&vinfo, dst->info.fmt, dst->info.w, dst->info.h);
-  to_caps = gst_video_info_to_caps (&vinfo);
-  to_sample = gst_video_convert_sample (from_sample, to_caps, GST_SECOND, NULL);
-  if (to_sample) {
-    to_buffer = gst_sample_get_buffer(to_sample);
-    gst_buffer_map (to_buffer, &map, GST_MAP_READ);
-    memcpy(dst->mem->vaddr, map.data, map.size);
-    gst_buffer_unmap(to_buffer, &map);
-    gst_sample_unref (to_sample);
-  }
-  gst_buffer_unref (from_buffer);
-  gst_caps_unref (from_caps);
-  gst_sample_unref (from_sample);
-  gst_caps_unref (to_caps);
-}
-#else
-static void
-gst_imxcompositor_fill_background(Imx2DFrame *dst, guint RGBA8888)
-{
-  gchar *p = (gchar *)dst->mem->vaddr;
-  gint i;
-  gchar R,G,B,A,Y,U,V;
-  gdouble y,u,v;
-
-  R = RGBA8888 & 0x000000FF;
-  G = (RGBA8888 & 0x0000FF00) >> 8;
-  B = (RGBA8888 & 0x00FF0000) >> 16;
-  A = (RGBA8888 & 0xFF000000) >> 24;
-
-  //BT.709
-  y = (0.213*R + 0.715*G + 0.072*B);
-  u = -0.117*R - 0.394*G + 0.511*B + 128;
-  v = 0.511*R - 0.464*G - 0.047*B + 128;
-
-  if (y > 255.0)
-    Y = 255;
-  else
-    Y = (gchar)y;
-  if (u < 0.0)
-    U = 0;
-  else
-    U = (gchar)u;
-  if (u > 255.0)
-    U = 255;
-  else
-    U = (gchar)u;
-  if (v < 0.0)
-    V = 0;
-  else
-    V = (gchar)v;
-  if (v > 255.0)
-    V = 255;
-  else
-    V = (gchar)v;
-
-  GST_INFO("RGBA8888 to %s\n", gst_video_format_to_string(dst->info.fmt));
-
-  switch (dst->info.fmt) {
-    case GST_VIDEO_FORMAT_RGBx:
-    case GST_VIDEO_FORMAT_RGBA:
-      for (i = 0; i < dst->mem->size/4; i++) {
-        p[4 * i + 0] = R;
-        p[4 * i + 1] = G;
-        p[4 * i + 2] = B;
-        p[4 * i + 3] = A;
-      }
-      break;
-    case GST_VIDEO_FORMAT_BGR:
-      for (i = 0; i < dst->mem->size/3; i++) {
-        p[3 * i + 0] = B;
-        p[3 * i + 1] = G;
-        p[3 * i + 2] = R;
-      }
-      break;
-    case GST_VIDEO_FORMAT_RGB:
-      for (i = 0; i < dst->mem->size/3; i++) {
-        p[3 * i + 0] = R;
-        p[3 * i + 1] = G;
-        p[3 * i + 2] = B;
-      }
-      break;
-    case GST_VIDEO_FORMAT_BGRx:
-    case GST_VIDEO_FORMAT_BGRA:
-      for (i = 0; i < dst->mem->size/4; i++) {
-        p[4 * i + 0] = B;
-        p[4 * i + 1] = G;
-        p[4 * i + 2] = R;
-        p[4 * i + 3] = A;
-      }
-      break;
-    case GST_VIDEO_FORMAT_ABGR:
-    case GST_VIDEO_FORMAT_xBGR:
-      for (i = 0; i < dst->mem->size/4; i++) {
-        p[4 * i + 0] = A;
-        p[4 * i + 1] = B;
-        p[4 * i + 2] = G;
-        p[4 * i + 3] = R;
-      }
-      break;
-    case GST_VIDEO_FORMAT_RGB16:
-      for (i = 0; i < dst->mem->size/2; i++) {
-        p[2 * i + 0] = ((G<<3) & 0xE0) | (B>>3);
-        p[2 * i + 1] = (R & 0xF8) | (G>>5);
-      }
-      break;
-    case GST_VIDEO_FORMAT_BGR16:
-      for (i = 0; i < dst->mem->size/2; i++) {
-        p[2 * i + 0] = ((G<<3) & 0xE0) | (R>>3);
-        p[2 * i + 1] = (B & 0xF8) | (G>>5);
-      }
-      break;
-    case GST_VIDEO_FORMAT_ARGB:
-    case GST_VIDEO_FORMAT_xRGB:
-      for (i = 0; i < dst->mem->size/4; i++) {
-        p[4 * i + 0] = A;
-        p[4 * i + 1] = R;
-        p[4 * i + 2] = G;
-        p[4 * i + 3] = B;
-      }
-      break;
-    case GST_VIDEO_FORMAT_Y444:
-      memset(p, Y, dst->info.w*dst->info.h);
-      memset(p+dst->info.w*dst->info.h, U, dst->info.w*dst->info.h);
-      memset(p+dst->info.w*dst->info.h*2, V, dst->info.w*dst->info.h);
-      break;
-    case GST_VIDEO_FORMAT_I420:
-      memset(p, Y, dst->info.w*dst->info.h);
-      memset(p+dst->info.w*dst->info.h, U, dst->info.w*dst->info.h/4);
-      memset(p+dst->info.w*dst->info.h*5/4, V, dst->info.w*dst->info.h/4);
-      break;
-    case GST_VIDEO_FORMAT_YV12:
-      memset(p, Y, dst->info.w*dst->info.h);
-      memset(p+dst->info.w*dst->info.h, V, dst->info.w*dst->info.h/4);
-      memset(p+dst->info.w*dst->info.h*5/4, U, dst->info.w*dst->info.h/4);
-      break;
-    case GST_VIDEO_FORMAT_NV12:
-      memset(p, Y, dst->info.w*dst->info.h);
-      p += dst->info.w*dst->info.h;
-      for (i = 0; i < dst->info.w*dst->info.h/4; i++) {
-        *p++ = U;
-        *p++ = V;
-      }
-      break;
-    case GST_VIDEO_FORMAT_NV21:
-      memset(p, Y, dst->info.w*dst->info.h);
-      p += dst->info.w*dst->info.h;
-      for (i = 0; i < dst->info.w*dst->info.h/4; i++) {
-        *p++ = V;
-        *p++ = U;
-      }
-      break;
-    case GST_VIDEO_FORMAT_UYVY:
-      for (i = 0; i < dst->info.w*dst->info.h/2; i++) {
-        *p++ = U;
-        *p++ = Y;
-        *p++ = V;
-        *p++ = Y;
-      }
-      break;
-    case GST_VIDEO_FORMAT_Y42B:
-      memset(p, Y, dst->info.w*dst->info.h);
-      memset(p+dst->info.w*dst->info.h, U, dst->info.w*dst->info.h/2);
-      memset(p+dst->info.w*dst->info.h*3/2, V, dst->info.w*dst->info.h/2);
-      break;
-    case GST_VIDEO_FORMAT_v308:
-      for (i = 0; i < dst->info.w*dst->info.h; i++) {
-        *p++ = Y;
-        *p++ = U;
-        *p++ = V;
-      }
-      break;
-    case GST_VIDEO_FORMAT_GRAY8:
-      memset(p, Y, dst->info.w*dst->info.h);
-      break;
-    case GST_VIDEO_FORMAT_NV16:
-      memset(p, Y, dst->info.w*dst->info.h);
-      p += dst->info.w*dst->info.h;
-      for (i = 0; i < dst->info.w*dst->info.h/2; i++) {
-        *p++ = U;
-        *p++ = V;
-      }
-      break;
-    default:
-      GST_FIXME("Add support for %d", dst->info.fmt);
-      memset(dst->mem->vaddr, 0, dst->mem->size);
-      break;
-  }
-}
-#endif
-
 #if !GST_CHECK_VERSION(1, 16, 0)
 static gint imxcompositor_pad_zorder_compare (gconstpointer a, gconstpointer b)
 {
@@ -1530,14 +1310,12 @@ gst_imxcompositor_aggregate_frames (GstVideoAggregator * vagg,
     if (device->fill) {
       if(device->fill (device, &dst, imxcomp->background) < 0) {
         GST_LOG("fill color background by device failed");
-        gst_imxcompositor_fill_background(&dst, imxcomp->background);
+        imx_2d_device_fill_background(&dst, imxcomp->background);
       }
     } else {
       GST_LOG("device has no fill interface");
-      gst_imxcompositor_fill_background(&dst, imxcomp->background);
+      imx_2d_device_fill_background(&dst, imxcomp->background);
     }
-  } else {
-    //gst_imxcompositor_fill_background(&dst, DEFAULT_IMXCOMPOSITOR_BACKGROUND);
   }
 
   //re-order by zorder of pad
@@ -1657,7 +1435,7 @@ gst_imxcompositor_aggregate_frames (GstVideoAggregator * vagg,
       device->device_type == IMX_2D_DEVICE_PXP && aggregated == 0) {
     /* PXP can't fill background without blending something */
     /* fill the background color by software */
-    gst_imxcompositor_fill_background(&dst, imxcomp->background);
+    imx_2d_device_fill_background(&dst, imxcomp->background);
   }
 
   if (need_unmap)

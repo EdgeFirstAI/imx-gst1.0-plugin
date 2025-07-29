@@ -234,5 +234,6 @@ gboolean imx_2d_device_read_warp_coordinates_file (Imx2DDevice *device,
     const char* file_name, Imx2DVideoWarp *video_warp);
 void imx_2d_device_set_warp_controls (const GstStructure * config,
     Imx2DVideoWarp *video_warp);
+void imx_2d_device_fill_background(Imx2DFrame *dst, guint RGBA8888);
 
 #endif /* __IMX_2D_DEVICE_H__ */

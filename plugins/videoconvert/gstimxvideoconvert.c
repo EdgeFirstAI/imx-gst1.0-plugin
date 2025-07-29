@@ -49,6 +49,8 @@
 #define GST_IMX_VIDEO_WARP_MAP_DEFAULT               IMX_2D_WARP_MAP_NULL
 #define GST_IMX_VIDEO_KEEP_RATIO_DEFAULT             FALSE
 
+#define DEFAULT_IMXVIDEOCONVERT_BACKGROUND   0x00000000
+
 #define GST_IMX_CONVERT_UNREF_BUFFER(buffer) {\
     if (buffer) {                             \
       GST_LOG ("unref buffer (%p)", buffer);  \
@@ -2297,6 +2299,43 @@ static GstFlowReturn imx_video_convert_transform(GstBaseTransform * trans, GstBu
 
   /* For OpenCL-based 2d device, need get outbuf and handle it in some cases */
   dst.outbuf = outbuf;
+
+  if (imxvct->keep_ratio) {
+    GstVideoFormatFlags out_flags;
+    gboolean need_sw_fill = FALSE;
+
+    out_flags = GST_VIDEO_FORMAT_INFO_FLAGS (filter->out_info.finfo);
+    if (device->fill) {
+      if(((out_flags & COLORSPACE_MASK) == GST_VIDEO_FORMAT_FLAG_YUV &&
+          device->device_type == IMX_2D_DEVICE_G2D) ||
+          device->fill (device, &dst, DEFAULT_IMXVIDEOCONVERT_BACKGROUND) < 0) {
+        GST_LOG("fill color background by device failed");
+        need_sw_fill = TRUE;
+      }
+    } else {
+      GST_LOG("device has no fill interface");
+      need_sw_fill = TRUE;
+    }
+
+    // set black background when need keep ratio
+    if (need_sw_fill) {
+      GstMapInfo map;
+      gboolean need_unmap = FALSE;
+
+      if (!dst.mem->vaddr) {
+        if(gst_buffer_map (outbuf, &map, GST_MAP_WRITE)) {
+          dst.mem->vaddr = map.data;
+          dst.mem->size = map.size;
+          need_unmap = TRUE;
+          GST_LOG("map background buffer %p size %" G_GSIZE_FORMAT, dst.mem->vaddr, dst.mem->size);
+        }
+      }
+      imx_2d_device_fill_background (&dst, DEFAULT_IMXVIDEOCONVERT_BACKGROUND);
+
+      if (need_unmap)
+        gst_buffer_unmap (outbuf, &map);
+    }
+  }
 
   gint64 start_time = g_get_monotonic_time ();
   //convert
