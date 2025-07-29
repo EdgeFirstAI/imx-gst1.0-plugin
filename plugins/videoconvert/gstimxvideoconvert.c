@@ -359,12 +359,15 @@ static GstCaps *imx_video_convert_add_drm_caps(GstCaps *caps, GList* list)
 
     for (i = 0; i < g_list_length (list); i++) {
       GstVideoFormat fmt = (GstVideoFormat)g_list_nth_data(list, i);
-      guint32 drm_fourcc = gst_video_dma_drm_fourcc_from_format (fmt);
+      guint64 modifier;
+      guint32 drm_fourcc;
+
+      drm_fourcc = gst_video_dma_drm_format_from_gst_format (fmt, &modifier);
       if (drm_fourcc == DRM_FORMAT_INVALID)
         continue;
 
       drm_fmt_str =
-          gst_video_dma_drm_fourcc_to_string (drm_fourcc, DRM_FORMAT_MOD_LINEAR);
+          gst_video_dma_drm_fourcc_to_string (drm_fourcc, modifier);
       if (!drm_fmt_str)
         continue;
 
