@@ -568,6 +568,43 @@ gst_imxasrc_src_event (GstBaseTransform * trans, GstEvent * event)
       trans, event);
 }
 
+static gboolean
+gst_imxasrc_check_discont (GstImxASRC * resample, GstBuffer * buf)
+{
+  guint64 offset;
+  guint64 delta;
+
+  /* is the incoming buffer a discontinuity? */
+  if (G_UNLIKELY (GST_BUFFER_IS_DISCONT (buf)))
+    return TRUE;
+
+  /* no valid timestamps or offsets to compare --> no discontinuity */
+  if (G_UNLIKELY (!(GST_BUFFER_TIMESTAMP_IS_VALID (buf) &&
+              GST_CLOCK_TIME_IS_VALID (resample->t0))))
+    return FALSE;
+
+  /* convert the inbound timestamp to an offset. */
+  offset =
+      gst_util_uint64_scale_int_round (GST_BUFFER_TIMESTAMP (buf) -
+      resample->t0, resample->in.rate, GST_SECOND);
+
+  /* many elements generate imperfect streams due to rounding errors, so we
+   * permit a small error (up to one sample) without triggering a filter
+   * flush/restart (if triggered incorrectly, this will be audible) */
+  /* allow even up to more samples, since sink is not so strict anyway,
+   * so give that one a chance to handle this as configured */
+  delta = ABS ((gint64) (offset - resample->samples_in));
+  if (delta <= (resample->in.rate >> 5))
+    return FALSE;
+
+  GST_WARNING_OBJECT (resample,
+      "encountered timestamp discontinuity of %" G_GUINT64_FORMAT " samples = %"
+      GST_TIME_FORMAT, delta,
+      GST_TIME_ARGS (gst_util_uint64_scale_int_round (delta, GST_SECOND,
+              resample->in.rate)));
+  return TRUE;
+}
+
 static GstFlowReturn
 gst_imxasrc_process (GstImxASRC * resample, GstBuffer * inbuf,
     GstBuffer * outbuf)
@@ -662,6 +699,45 @@ gst_imxasrc_transform (GstBaseTransform * trans, GstBuffer * inbuf,
       gst_buffer_get_size (inbuf), GST_TIME_ARGS (GST_BUFFER_TIMESTAMP (inbuf)),
       GST_TIME_ARGS (GST_BUFFER_DURATION (inbuf)),
       GST_BUFFER_OFFSET (inbuf), GST_BUFFER_OFFSET_END (inbuf));
+
+  /* check for timestamp discontinuities;  flush/reset if needed, and set
+   * flag to resync timestamp and offset counters and send event
+   * downstream */
+  if (G_UNLIKELY (gst_imxasrc_check_discont (imxasrc, inbuf))) {
+    gst_imxasrc_reset_state (imxasrc);
+    imxasrc->need_discont = TRUE;
+  }
+
+  /* handle discontinuity */
+  if (G_UNLIKELY (imxasrc->need_discont)) {
+    imxasrc->num_gap_samples = 0;
+    imxasrc->num_nongap_samples = 0;
+    /* reset */
+    imxasrc->samples_in = 0;
+    imxasrc->samples_out = 0;
+    GST_DEBUG_OBJECT (imxasrc, "found discontinuity; resyncing");
+    /* resync the timestamp and offset counters if possible */
+    if (GST_BUFFER_TIMESTAMP_IS_VALID (inbuf)) {
+      imxasrc->t0 = GST_BUFFER_TIMESTAMP (inbuf);
+    } else {
+      GST_DEBUG_OBJECT (imxasrc, "... but new timestamp is invalid");
+      imxasrc->t0 = GST_CLOCK_TIME_NONE;
+    }
+    if (GST_BUFFER_OFFSET_IS_VALID (inbuf)) {
+      imxasrc->in_offset0 = GST_BUFFER_OFFSET (inbuf);
+      imxasrc->out_offset0 =
+          gst_util_uint64_scale_int_round (imxasrc->in_offset0,
+          imxasrc->out.rate, imxasrc->in.rate);
+    } else {
+      GST_DEBUG_OBJECT (imxasrc, "... but new offset is invalid");
+      imxasrc->in_offset0 = GST_BUFFER_OFFSET_NONE;
+      imxasrc->out_offset0 = GST_BUFFER_OFFSET_NONE;
+    }
+    /* set DISCONT flag on output buffer */
+    GST_DEBUG_OBJECT (imxasrc, "marking this buffer with the DISCONT flag");
+    GST_BUFFER_FLAG_SET (outbuf, GST_BUFFER_FLAG_DISCONT);
+    imxasrc->need_discont = FALSE;
+  }
 
   ret = gst_imxasrc_process (imxasrc, inbuf, outbuf);
   if (G_UNLIKELY (ret != GST_FLOW_OK))
