@@ -215,8 +215,8 @@ gst_imxasrc_converter_samples (GstImxASRCConverter * convert,
   }
 
   if (convert->resampler)
-    gst_imxasrc_resampler_resample (convert->resampler, in, in_frames, out, out_frames);
-
+    if (gst_imxasrc_resampler_resample (convert->resampler, in, in_frames, out, out_frames))
+      return FALSE;
   return TRUE;
 }
 

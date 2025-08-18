@@ -614,6 +614,7 @@ gst_imxasrc_process (GstImxASRC * resample, GstBuffer * inbuf,
   gsize in_len;
   gsize out_len;
   gboolean inbuf_writable;
+  gboolean ret;
 
   inbuf_writable = gst_buffer_is_writable (inbuf)
       && gst_buffer_n_memory (inbuf) == 1
@@ -638,7 +639,7 @@ gst_imxasrc_process (GstImxASRC * resample, GstBuffer * inbuf,
 
   gst_audio_buffer_map (&dstabuf, &resample->out, outbuf, GST_MAP_WRITE);
 
-  gst_imxasrc_converter_samples (resample->converter, 0, srcabuf.planes,
+  ret = gst_imxasrc_converter_samples (resample->converter, 0, srcabuf.planes,
     in_len, dstabuf.planes, out_len);
 
   /* time */
@@ -679,7 +680,7 @@ gst_imxasrc_process (GstImxASRC * resample, GstBuffer * inbuf,
       GST_TIME_ARGS (GST_BUFFER_DURATION (outbuf)),
       GST_BUFFER_OFFSET (outbuf), GST_BUFFER_OFFSET_END (outbuf));
 
-  if (outsize == 0)
+  if (!ret)
     return GST_BASE_TRANSFORM_FLOW_DROPPED;
   else
     return GST_FLOW_OK;

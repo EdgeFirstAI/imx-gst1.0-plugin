@@ -367,12 +367,13 @@ gst_imxasrc_resampler_free (GstImxASRCResampler * resampler)
  * gst_imxasrc_resampler_get_in_frames() to make sure @in_frames and @out_frames
  * are matching and @in and @out point to enough memory.
  */
-void
+gint
 gst_imxasrc_resampler_resample (GstImxASRCResampler * resampler,
     gpointer in[], gsize in_frames, gpointer out[], gsize out_frames)
 {
+  gint ret;
 
-  resampler->resample (resampler, in, in_frames, out, out_frames);
+  ret = resampler->resample (resampler, in, in_frames, out, out_frames);
 
-  return;
+  return ret;
 }

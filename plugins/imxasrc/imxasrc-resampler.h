@@ -100,7 +100,7 @@ GST_AUDIO_API
 void gst_imxasrc_resampler_free (GstImxASRCResampler * resampler);
 
 GST_AUDIO_API
-void gst_imxasrc_resampler_resample (GstImxASRCResampler * resampler,
+gint gst_imxasrc_resampler_resample (GstImxASRCResampler * resampler,
                                      gpointer in[], gsize in_frames,
                                      gpointer out[], gsize out_frames);
 

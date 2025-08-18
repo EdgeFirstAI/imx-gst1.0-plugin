@@ -67,7 +67,7 @@ GST_AUDIO_API
 void gst_imxasrc_converter_free (GstImxASRCConverter * convert);
 
 GST_AUDIO_API
-gboolean gst_imxasrc_converter_samples (GstImxASRCConverter * convert,
+gint gst_imxasrc_converter_samples (GstImxASRCConverter * convert,
                                         GstAudioConverterFlags flags,
                                         gpointer in[], gsize in_frames,
                                         gpointer out[], gsize out_frames);
