@@ -11,7 +11,7 @@ import http.server
 import signal
 from enum import Enum
 
-VERSION_STR = "PIPEWIRE_RECORDER_00.00.07"
+VERSION_STR = "PIPEWIRE_RECORDER_00.00.08"
 
 # Return result
 class Ret(Enum):
@@ -29,7 +29,7 @@ class PipewireBackend:
                 return True
         return False
 
-    def set_parameters(self, is_add):
+    def set_parameters(self, is_add, modify_g2d):
         ret = Ret.OK
         file_name = "/etc/xdg/weston/weston.ini"
         section = ["[output]", "name=pipewire", "mirror-of=HDMI-A-1", "mode=1920x1080@30"]
@@ -48,7 +48,7 @@ class PipewireBackend:
                     use_g2d = "use-g2d=true"
                     use_g2d_pos = line.find(use_g2d)
 
-                    if use_g2d_pos >= 0:
+                    if use_g2d_pos >= 0 and modify_g2d:
                         # 1.Check and disable g2d render if needed
                         if use_g2d_pos == 0:
                             line = "#" + line
@@ -136,7 +136,7 @@ class PipewireBackend:
             print (f"ERROR: failed to find pipeiwre backend file, please install it first!")
             return ret
         # Set the parameters first and then enable the backend
-        res_1 = self.set_parameters(True)
+        res_1 = self.set_parameters(True, False)
         if res_1 == Ret.OK or res_1 == Ret.PARAM_CHANGE:
             res_2 = self.set_backend(True)
             if res_2 == Ret.OK or res_2 == Ret.PARAM_CHANGE:
@@ -158,7 +158,7 @@ class PipewireBackend:
         # Disable the backend first and then remove the parameters
         res_1 = self.set_backend(False)
         if res_1 == Ret.OK or res_1 == Ret.PARAM_CHANGE:
-            res_2 = self.set_parameters(False)
+            res_2 = self.set_parameters(False, False)
             if res_2 == Ret.OK or res_2 == Ret.PARAM_CHANGE:
                 if res_1 == Ret.PARAM_CHANGE or res_2 == Ret.PARAM_CHANGE:
                     os.system ("systemctl daemon-reload")
