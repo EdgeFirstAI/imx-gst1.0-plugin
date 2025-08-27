@@ -11,7 +11,7 @@ import http.server
 import signal
 from enum import Enum
 
-VERSION_STR = "PIPEWIRE_RECORDER_00.00.06"
+VERSION_STR = "PIPEWIRE_RECORDER_00.00.07"
 
 # Return result
 class Ret(Enum):
@@ -258,7 +258,7 @@ class FileRecorder (ScreenRecorder):
             if record_audio:
                 record_cmd = f"gst-launch-1.0 pipewiresrc path={self.video_recorder_id} keepalive-time={self.keepalive_time} provide-clock=false ! imxvideoconvert_g2d ! v4l2h264enc extra-controls=\"encode, video_bitrate=10000000\" ! h264parse ! queue ! mux. pipewiresrc path={self.audio_recorder_id} use-bufferpool=false provide-clock=false ! audio/x-raw,format=S16LE,rate=48000,channels=2 ! queue ! lamemp3enc ! mpegaudioparse ! queue ! mux. matroskamux name=mux ! filesink location={FILE_PATH} >>/dev/null 2>&1"
             else:
-                record_cmd = f"gst-launch-1.0 pipewiresrc path={self.video_recorder_id} keepalive-time={self.keepalive_time} ! imxvideoconvert_g2d ! v4l2h264enc extra-controls=\"encode, video_bitrate=10000000\" ! h264parse ! queue ! matroskamux ! filesink location={FILE_PATH} >>/dev/null 2>&1"
+                record_cmd = f"gst-launch-1.0 pipewiresrc path={self.video_recorder_id} keepalive-time={self.keepalive_time} provide-clock=false ! imxvideoconvert_g2d ! v4l2h264enc extra-controls=\"encode, video_bitrate=10000000\" ! h264parse ! queue ! matroskamux ! filesink location={FILE_PATH} >>/dev/null 2>&1"
             self.process = subprocess.Popen(record_cmd, shell=True)
             print (f"Start recording to the file, location: {FILE_PATH}")
             return Ret.OK
@@ -294,7 +294,7 @@ class HlsRecorder (ScreenRecorder):
             if record_audio:
                 record_cmd = f"gst-launch-1.0 pipewiresrc path={self.video_recorder_id} keepalive-time={self.keepalive_time} provide-clock=false ! imxvideoconvert_g2d ! v4l2h264enc extra-controls=\"encode, video_bitrate=10000000\" ! h264parse ! queue ! mux. pipewiresrc path={self.audio_recorder_id} use-bufferpool=false provide-clock=false ! audio/x-raw,format=S16LE,rate=48000,channels=2 ! queue ! lamemp3enc ! mpegaudioparse ! queue ! mux. mpegtsmux name=mux ! hlssink playlist-root=http://{server_ip}:{self.port} playlist-location={self.work_path}/{self.hls_playlist} location={self.work_path}/{self.hls_segment}_%05d.ts target-duration=1 max-files=5 >>/dev/null 2>&1"
             else:
-                record_cmd = f"gst-launch-1.0 pipewiresrc path={self.video_recorder_id} keepalive-time={self.keepalive_time} ! imxvideoconvert_g2d ! v4l2h264enc extra-controls=\"encode, video_bitrate=10000000\" ! h264parse ! queue ! mpegtsmux ! hlssink playlist-root=http://{server_ip}:{self.port} playlist-location={self.work_path}/{self.hls_playlist} location={self.work_path}/{self.hls_segment}_%05d.ts target-duration=1 max-files=5 >>/dev/null 2>&1"
+                record_cmd = f"gst-launch-1.0 pipewiresrc path={self.video_recorder_id} keepalive-time={self.keepalive_time} provide-clock=false ! imxvideoconvert_g2d ! v4l2h264enc extra-controls=\"encode, video_bitrate=10000000\" ! h264parse ! queue ! mpegtsmux ! hlssink playlist-root=http://{server_ip}:{self.port} playlist-location={self.work_path}/{self.hls_playlist} location={self.work_path}/{self.hls_segment}_%05d.ts target-duration=1 max-files=5 >>/dev/null 2>&1"
             self.hls_process = subprocess.Popen(record_cmd, shell=True)
             print (f"Start recording as HLS server. Play URI: http://{server_ip}:{self.port}/{self.hls_playlist}")
             print (f"Recording file directory: {self.work_path}")
@@ -340,7 +340,7 @@ class RtspRecorder (ScreenRecorder):
             if record_audio:
                 record_cmd = f"{self.rtsp_server_path}/{self.rtsp_server} \"pipewiresrc path={self.video_recorder_id} keepalive-time={self.keepalive_time} provide-clock=false ! imxvideoconvert_g2d ! v4l2h264enc extra-controls=encode,video_bitrate=10000000 ! h264parse ! queue ! mux. pipewiresrc path={self.audio_recorder_id} use-bufferpool=false provide-clock=false ! audio/x-raw,format=S16LE,rate=48000,channels=2 ! queue ! lamemp3enc ! mpegaudioparse ! queue ! mux. mpegtsmux name=mux ! rtpmp2tpay name=pay0 >>/dev/null 2>&1\""
             else:
-                record_cmd = f"{self.rtsp_server_path}/{self.rtsp_server} \"pipewiresrc path={self.video_recorder_id} keepalive-time={self.keepalive_time} ! imxvideoconvert_g2d ! v4l2h264enc extra-controls=encode,video_bitrate=10000000 ! h264parse ! queue ! mpegtsmux ! rtpmp2tpay name=pay0 >>/dev/null 2>&1\""
+                record_cmd = f"{self.rtsp_server_path}/{self.rtsp_server} \"pipewiresrc path={self.video_recorder_id} keepalive-time={self.keepalive_time} provide-clock=false ! imxvideoconvert_g2d ! v4l2h264enc extra-controls=encode,video_bitrate=10000000 ! h264parse ! queue ! mpegtsmux ! rtpmp2tpay name=pay0 >>/dev/null 2>&1\""
             self.rtsp_process = subprocess.Popen(record_cmd, shell=True)
             print (f"Start recording as RTSP server. Play URI: rtsp://{server_ip}:8554/test")
             return Ret.OK
@@ -364,7 +364,7 @@ class RtpRecorder (ScreenRecorder):
             if record_audio:
                 record_cmd = f"gst-launch-1.0 pipewiresrc path={self.video_recorder_id} keepalive-time={self.keepalive_time} provide-clock=false ! imxvideoconvert_g2d ! v4l2h264enc extra-controls=\"encode, video_bitrate=10000000\" ! h264parse ! queue ! mux. pipewiresrc path={self.audio_recorder_id} use-bufferpool=false provide-clock=false ! audio/x-raw,format=S16LE,rate=48000,channels=2 ! queue ! lamemp3enc ! mpegaudioparse ! queue ! mux. mpegtsmux name=mux ! rtpmp2tpay ! udpsink host={receiver_ip} port=1234 >>/dev/null 2>&1"
             else:
-                record_cmd = f"gst-launch-1.0 pipewiresrc path={self.video_recorder_id} keepalive-time={self.keepalive_time} ! imxvideoconvert_g2d ! v4l2h264enc extra-controls=\"encode, video_bitrate=10000000\" ! h264parse ! queue ! mpegtsmux ! rtpmp2tpay ! udpsink host={receiver_ip} port=1234 sync=false async=false >>/dev/null 2>&1"
+                record_cmd = f"gst-launch-1.0 pipewiresrc path={self.video_recorder_id} keepalive-time={self.keepalive_time} provide-clock=false ! imxvideoconvert_g2d ! v4l2h264enc extra-controls=\"encode, video_bitrate=10000000\" ! h264parse ! queue ! mpegtsmux ! rtpmp2tpay ! udpsink host={receiver_ip} port=1234 sync=false async=false >>/dev/null 2>&1"
             self.rtp_process = subprocess.Popen(record_cmd, shell=True)
             print (f"Start recording as RTP server. Play URI: rtp://@{receiver_ip}:1234")
             return Ret.OK
