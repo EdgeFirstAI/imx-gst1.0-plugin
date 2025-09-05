@@ -180,7 +180,8 @@ static IMXV4l2FmtMap g_imxv4l2fmt_maps_PXP[] = {
    * V4L2_PIX_FMT_YUV32 is 32  YUV-8-8-8-8
    * V4L2 capture output on SX TV In and PXP output on Kernel 3.14 is 32 bits
    * packed AYUV444 with 4 bytes reversed (V0-U0-Y0-A0...). A is 0 */
-  {GST_VIDEO_CAPS_MAKE("AYUV"), V4L2_PIX_FMT_YUV32, GST_VIDEO_FORMAT_AYUV, 32, 0},
+  /* FIXME: pxp show wrong color for AYUV, remove it */
+  //{GST_VIDEO_CAPS_MAKE("AYUV"), V4L2_PIX_FMT_YUV32, GST_VIDEO_FORMAT_AYUV, 32, 0},
   {GST_VIDEO_CAPS_MAKE("UYVY"), V4L2_PIX_FMT_UYVY, GST_VIDEO_FORMAT_UYVY, 16, 0},
   {GST_VIDEO_CAPS_MAKE("YUY2"), V4L2_PIX_FMT_YUYV, GST_VIDEO_FORMAT_YUY2, 16, 0},
   {GST_VIDEO_CAPS_MAKE("BGRx"), V4L2_PIX_FMT_RGB32, GST_VIDEO_FORMAT_BGRx, 32, 0},
