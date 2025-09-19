@@ -11,7 +11,7 @@ import http.server
 import signal
 from enum import Enum
 
-VERSION_STR = "PIPEWIRE_RECORDER_00.00.08"
+VERSION_STR = "PIPEWIRE_RECORDER_00.00.09"
 
 # Return result
 class Ret(Enum):
@@ -32,7 +32,7 @@ class PipewireBackend:
     def set_parameters(self, is_add, modify_g2d):
         ret = Ret.OK
         file_name = "/etc/xdg/weston/weston.ini"
-        section = ["[output]", "name=pipewire", "mirror-of=HDMI-A-1", "mode=1920x1080@30"]
+        section = ["[output]", "name=pipewire", "mirror-of=HDMI-A-1", "mode=1920x1080@60"]
         append_str=f"{section[0]}\n{section[1]}\n{section[2]}\n{section[3]}"
         has_pipewire = False
         remove_line = 0
