@@ -61,7 +61,7 @@ GST_DEBUG_CATEGORY (imxv4l2_debug);
 #define MXC_V4L2_CAPTURE_CAMERA_NAME "ov"
 #define MXC_V4L2_CAPTURE_TVIN_NAME "adv"
 #define MXC_V4L2_CAPTURE_TVIN_VADC_NAME "vadc"
-#define PXP_V4L2_CAPTURE_NAME "csi_v4l2"
+#define PXP_V4L2_CAPTURE_NAME "mx6s-csi"
 
 #define TRY_TIMEOUT (500000) //500ms
 #define TRY_INTERVAL (1000) //1ms
@@ -1001,17 +1001,17 @@ gst_imx_v4l2capture_set_function (IMXV4l2Handle *handle)
 
   handle->is_tvin = FALSE;
   if (!strcmp ((char *)cap.driver, MXC_V4L2_CAPTURE_NAME)) {
-    struct v4l2_dbg_chip_ident chip;
-    if (ioctl(handle->v4l2_fd, VIDIOC_DBG_G_CHIP_IDENT, &chip)) {
-      GST_ERROR ("VIDIOC_DBG_G_CHIP_IDENT failed.\n");
+    v4l2_std_id id = 0;
+    if (ioctl(handle->v4l2_fd, VIDIOC_G_STD, &id)) {
+      GST_ERROR ("VIDIOC_G_STD failed.\n");
       return -1;
     }
-    GST_INFO ("sensor chip is %s\n", chip.match.name);
+    GST_INFO ("sensor chip id is %lld\n", id);
 
-    if (!strncmp (chip.match.name, MXC_V4L2_CAPTURE_CAMERA_NAME, 2)) {
+    if (id == 0) {
       handle->dev_itf.v4l2capture_config = (V4l2captureConfig)gst_imx_v4l2capture_config_camera;
       handle->support_format_table = g_camera_format_IPU;
-    } else if (!strncmp (chip.match.name, MXC_V4L2_CAPTURE_TVIN_NAME, 3)) {
+    } else if (id == V4L2_STD_NTSC || id == V4L2_STD_PAL) {
       handle->dev_itf.v4l2capture_config = (V4l2captureConfig)gst_imx_v4l2capture_config_camera;
       handle->support_format_table = g_camera_format_IPU;
       handle->is_tvin = TRUE;
@@ -1024,17 +1024,17 @@ gst_imx_v4l2capture_set_function (IMXV4l2Handle *handle)
       return -1;
     }
   } else if (!strcmp ((char *)cap.driver, PXP_V4L2_CAPTURE_NAME)) {
-    struct v4l2_dbg_chip_ident chip;
-    if (ioctl(handle->v4l2_fd, VIDIOC_DBG_G_CHIP_IDENT, &chip)) {
-      GST_ERROR ("VIDIOC_DBG_G_CHIP_IDENT failed.\n");
+    v4l2_std_id id = 0;
+    if (ioctl(handle->v4l2_fd, VIDIOC_G_STD, &id)) {
+      GST_ERROR ("VIDIOC_G_STD failed.\n");
       return -1;
     }
-    GST_INFO ("sensor chip is %s\n", chip.match.name);
+    GST_INFO ("sensor chip id is %lld\n", id);
 
-    if (!strncmp (chip.match.name, MXC_V4L2_CAPTURE_CAMERA_NAME, 2)) {
+    if (id == 0) {
       handle->dev_itf.v4l2capture_config = (V4l2captureConfig)gst_imx_v4l2capture_config_pxp;
       handle->support_format_table = g_camera_format_PXP;
-    } else if (!strncmp (chip.match.name, MXC_V4L2_CAPTURE_TVIN_VADC_NAME, 3)) {
+    } else if (id == V4L2_STD_NTSC || id == V4L2_STD_PAL) {
       handle->dev_itf.v4l2capture_config = (V4l2captureConfig)gst_imx_v4l2capture_config_pxp;
       handle->support_format_table = g_camera_format_PXP;
       handle->is_tvin = TRUE;
