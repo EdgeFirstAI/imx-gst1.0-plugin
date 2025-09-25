@@ -96,6 +96,8 @@ typedef enum{
 typedef struct {
   REuint32 list;
   REuint32 audio_source;
+  REuint32 audio_id;
+  REuint32 sample_format;
   REuint32 sample_rate;
   REuint32 channel;
   REuint32 video_source;
@@ -128,6 +130,7 @@ typedef struct {
   REuint32 verbose;
   REboolean use_default_filename;
   REuint32 fragment_duration;
+  REuint32 record_screen;
 }REOptions;
 
 static pthread_t media_time_thread = 0;
@@ -243,10 +246,17 @@ static int set_recoder_setting (RecorderEngine *recorder, REOptions * pOpt)
 {
   REuint64 free_size;
 
+  recorder->record_screen ((RecorderEngineHandle)recorder, pOpt->record_screen);
+
   /* Audio source interface */
   if (RE_RESULT_SUCCESS != recorder->set_audio_source (
         (RecorderEngineHandle)recorder, pOpt->audio_source)) {
     LOG_ERROR ("set audio source fail.\n");
+    return -1;
+  }
+  if (RE_RESULT_SUCCESS != recorder->set_audio_id (
+        (RecorderEngineHandle)recorder, pOpt->audio_id)) {
+    LOG_ERROR ("set audio id fail.\n");
     return -1;
   }
   if (RE_RESULT_SUCCESS != recorder->set_audio_sample_rate (
@@ -257,6 +267,17 @@ static int set_recoder_setting (RecorderEngine *recorder, REOptions * pOpt)
   if (RE_RESULT_SUCCESS != recorder->set_audio_channel (
         (RecorderEngineHandle)recorder, pOpt->channel)) {
     LOG_ERROR ("set audio channel fail.\n");
+    return -1;
+  }
+
+  /* Configure audio parameters */
+  RERawAudioSettings audio_property;
+  audio_property.sampleFormat = pOpt->sample_format;
+  audio_property.sampleRate = pOpt->sample_rate;
+  audio_property.channels = pOpt->channel;
+  if (RE_RESULT_SUCCESS != recorder->set_audio_output_settings (
+        (RecorderEngineHandle)recorder, &audio_property)) {
+    LOG_ERROR ("set audio ouput settings fail.\n");
     return -1;
   }
 
@@ -597,6 +618,7 @@ static int recorder_parse_options(int argc, char* argv[], REOptions * pOpt)
   static int list;
   static int preview_buffer;
   static int disable_viewfinder;
+  static int record_screen;
   static int add_time_stamp;
   int option_index = 0;
   int c;
@@ -605,10 +627,10 @@ static int recorder_parse_options(int argc, char* argv[], REOptions * pOpt)
   {
     static char long_options_desc[][128] = {
       {"list camera supported video property"},
-      {"audio input: 0->default(mic), 1->mic, 2->audiotestsrc"},
-      {"audio sample rate"},
-      {"audio channel"},
-      {"video input: 0->default(autoplug), 1->v4l2src, 2->imxv4l2src, 3->videotestsrc"},
+      {"audio input: 0->default(mic), 1->mic, 2->audiotestsrc, 3->pipewiresrc"},
+      {"audio sample rate: 0->default(48000), 48000->48K ..."},
+      {"audio channel: 0->default(2), 1->single channel, 2->dual channels ..."},
+      {"video input: 0->default(autoplug), 1->v4l2src, 2->imxv4l2src, 3->videotestsrc, 5->pipewiresrc"},
       {"camera id: 0->/dev/video0, 1->/dev/video1, 2->/dev/video2 ... $N->/dev/video$N"},
       {"camera output video format: 0->default(I420), 1->I420, 2->NV12, 3->YUYV, 4->UYVY, 5->BGRA, 6->BGRx, 7->RGB16"},
       {"camera output video width"},
@@ -637,6 +659,9 @@ static int recorder_parse_options(int argc, char* argv[], REOptions * pOpt)
       {"max duration for recorded file(second)"},
       {"max file size for recorded file(Byte)"},
       {"fragment duration in millisecond: the default value is 1000ms for fmp4 and 500 ms for mkv"},
+      {"enable screen recording"},
+      {"audio id: audio id information"},
+      {"audio sample format: 8->8 bit, 16->16 bit singed, 24->24 bit singed, 32->32 bit singed"},
       {"display application log"},
       {0, 0, 0, 0}
     };
@@ -676,11 +701,14 @@ static int recorder_parse_options(int argc, char* argv[], REOptions * pOpt)
       {"duration",    required_argument, 0, 'd'},
       {"file_size",    required_argument, 0, 'z'},
       {"fragment_duration",    required_argument, 0, 'y'},
+      {"audio_id",  required_argument, 0, 'A'},
+      {"sample_format",  required_argument, 0, 'F'},
+      {"record_screen", no_argument,       &record_screen, 1},
       {"verbose", no_argument,       &verbose, 1},
       {0, 0, 0, 0}
     };
 
-    c = getopt_long (argc, argv, "a:s:w:e:u:f:k:t:q:i:v:n:z:o:r:x:g:d:y:",
+    c = getopt_long (argc, argv, "a:s:c:w:e:u:f:k:t:q:i:v:n:z:o:r:x:g:d:y:A:F:",
         long_options, &option_index);
 
     /* Detect the end of the options. */
@@ -705,6 +733,10 @@ static int recorder_parse_options(int argc, char* argv[], REOptions * pOpt)
       case 's':
         if (optarg)
           pOpt->sample_rate = atoi (optarg);
+        break;
+      case 'c':
+        if (optarg)
+          pOpt->channel = atoi (optarg);
         break;
       case 'w':
         if (optarg)
@@ -774,6 +806,14 @@ static int recorder_parse_options(int argc, char* argv[], REOptions * pOpt)
         if (optarg)
           pOpt->duration = atoi (optarg);
         break;
+      case 'A':
+        if (optarg)
+          pOpt->audio_id = atoi (optarg);
+        break;
+      case 'F':
+        if (optarg)
+          pOpt->sample_format = atoi (optarg);
+        break;
       case 'h':
         printf ("Usage: grecorder-1.0 [OPTION]\n");
         for (c = 0; long_options[c].name; ++c) {
@@ -802,6 +842,7 @@ static int recorder_parse_options(int argc, char* argv[], REOptions * pOpt)
   pOpt->disable_viewfinder = disable_viewfinder;
   pOpt->add_time_stamp = add_time_stamp;
   pOpt->use_default_filename = RE_BOOLEAN_FALSE;
+  pOpt->record_screen = record_screen;
   if (pOpt->path[0] == 0) {
     pOpt->use_default_filename = RE_BOOLEAN_TRUE;
     if (!getcwd(path, sizeof(path))) {

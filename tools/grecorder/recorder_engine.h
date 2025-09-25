@@ -71,7 +71,8 @@ typedef REuint32    REresult;
 #define RE_VIDEO_SOURCE_IMXCAMERA           ((REuint32) 0x00000002)
 #define RE_VIDEO_SOURCE_TEST                ((REuint32) 0x00000003)
 #define RE_VIDEO_SOURCE_SCREEN              ((REuint32) 0x00000004)
-#define RE_VIDEO_SOURCE_LIST_END            ((REuint32) 0x00000005)
+#define RE_VIDEO_SOURCE_PIPEWIRE            ((REuint32) 0x00000005)
+#define RE_VIDEO_SOURCE_LIST_END            ((REuint32) 0x00000006)
 
 #define RE_COLORFORMAT_DEFAULT              ((REuint32) 0x00000000)
 #define RE_COLORFORMAT_YUV420PLANAR         ((REuint32) 0x00000001)
@@ -110,7 +111,8 @@ typedef REuint32    REresult;
 #define RE_AUDIO_SOURCE_DEFAULT             ((REuint32) 0x00000000)
 #define RE_AUDIO_SOURCE_MIC                 ((REuint32) 0x00000001)
 #define RE_AUDIO_SOURCE_TEST                ((REuint32) 0x00000002)
-#define RE_AUDIO_SOURCE_LIST_END            ((REuint32) 0x00000003)
+#define RE_AUDIO_SOURCE_PIPEWIRE            ((REuint32) 0x00000003)
+#define RE_AUDIO_SOURCE_LIST_END            ((REuint32) 0x00000004)
 
 #define RE_AUDIO_ENCODER_DEFAULT            ((REuint32) 0x00000000)
 #define RE_AUDIO_ENCODER_MP3                ((REuint32) 0x00000001)
@@ -145,6 +147,12 @@ typedef struct RERawVideoSettings_ {
   REuint32 height;
   REuint32 framesPerSecond;
 } RERawVideoSettings;
+
+typedef struct RERawAudioSettings_ {
+  REuint32 sampleFormat;
+  REuint32 sampleRate;
+  REuint32 channels;
+} RERawAudioSettings;
 
 typedef struct REVideoRect_ {
   REuint32 left;
@@ -187,16 +195,19 @@ typedef struct RecorderEngine_
 {
   /* Audio source interface */
   REresult (*set_audio_source)(RecorderEngineHandle handle, REuint32 as);
+  REresult (*set_audio_id)(RecorderEngineHandle handle, REuint32 audioId);
   REresult (*get_audio_supported_sample_rate)(RecorderEngineHandle handle, REuint32 index, REuint32 *sampleRate);
   REresult (*set_audio_sample_rate)(RecorderEngineHandle handle, REuint32 sampleRate);
   REresult (*get_audio_supported_channel)(RecorderEngineHandle handle, REuint32 index, REuint32 *channels);
   REresult (*set_audio_channel)(RecorderEngineHandle handle, REuint32 channels);
+  REresult (*set_audio_output_settings)(RecorderEngineHandle handle, RERawAudioSettings *audioProperty);
 
   /* Camera interface */
   REresult (*set_video_source)(RecorderEngineHandle handle, REuint32 vs);
   REresult (*set_camera_id)(RecorderEngineHandle handle, REuint32 cameraId);
   REresult (*get_camera_capabilities)(RecorderEngineHandle handle, REuint32 index);
   REresult (*set_camera_output_settings)(RecorderEngineHandle handle, RERawVideoSettings *videoProperty);
+  REresult (*record_screen)(RecorderEngineHandle handle, REboolean bRecordScreen);
 
   /* View finder interface */
   REresult (*disable_viewfinder)(RecorderEngineHandle handle, REboolean bDisableViewfinder);

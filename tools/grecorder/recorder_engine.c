@@ -36,6 +36,9 @@
 #include <gst/pbutils/encoding-target.h>
 #include "recorder_engine.h"
 #include "gstimxcommon.h"
+#include <gst/allocators/gstdmabuf.h>
+#include <libdrm/drm_fourcc.h>
+
 /*
  * debug logging
  */
@@ -175,6 +178,7 @@ typedef struct _gRecorderEngine
   gchar *videosrc_name;
   gchar *videodevice_name;
   gchar *audiosrc_name;
+  gchar *audiodevice_name;
   gchar *wrappersrc_name;
   gchar *imagepp_name;
   gchar *vfsink_name;
@@ -260,6 +264,8 @@ typedef struct _gRecorderEngine
   RecorderEngineEventHandler app_callback;
   gpointer pAppData;
   GMutex lock;
+  GstCaps *audio_output_caps;
+  gboolean record_screen;
 } gRecorderEngine;
 
 
@@ -868,7 +874,7 @@ setup_pipeline (gRecorderEngine *recorder)
   REresult ret = RE_RESULT_SUCCESS;
   gboolean res = TRUE;
   GstBus *bus;
-  GstElement *sink = NULL, *ipp = NULL;
+  GstElement *sink = NULL, *ipp = NULL, *audio_src = NULL;
   GstEncodingProfile *prof = NULL;
   GstElement *camerasrc = NULL;
 
@@ -940,6 +946,29 @@ setup_pipeline (gRecorderEngine *recorder)
         g_object_set (recorder->video_src, "device", recorder->videodevice_name, NULL);
     }
 
+    if (g_strcmp0(recorder->videosrc_name, "pipewiresrc") == 0) {
+      GValue item = G_VALUE_INIT;
+      GstIterator *it = gst_bin_iterate_sources ((GstBin*)camerasrc);
+      if (gst_iterator_next (it, &item) != GST_ITERATOR_OK)
+      {
+        g_warning("%s(): gst_iterator_next failed\n", __FUNCTION__);
+        gst_iterator_free (it);
+        return RE_RESULT_INTERNAL_ERROR;
+      }
+      recorder->video_src = g_value_get_object (&item);
+      g_value_unset (&item);
+      gst_iterator_free (it);
+
+      if (recorder->video_src && recorder->videodevice_name ) {
+        g_object_set (recorder->video_src, "path", recorder->videodevice_name, NULL);
+        g_object_set (recorder->video_src, "provide-clock", FALSE, NULL);
+
+        if (recorder->record_screen){
+          g_object_set (recorder->video_src, "keepalive-time", 50, NULL);
+        }
+      }
+    }
+
     g_object_set (wrapper, "video-source", camerasrc, NULL);
     g_object_set (wrapper, "post-previews", FALSE, NULL);
 
@@ -990,7 +1019,7 @@ setup_pipeline (gRecorderEngine *recorder)
   GST_INFO_OBJECT (recorder->camerabin, "view finder filter string: %s",
       recorder->viewfinder_filter);
 
-  if (recorder->disable_viewfinder)
+  if (recorder->disable_viewfinder || recorder->record_screen)
     recorder->vfsink_name = "fakesink";
   else
     if (recorder->video_detect_name)
@@ -1000,9 +1029,38 @@ setup_pipeline (gRecorderEngine *recorder)
     else
       recorder->vfsink_name = "autovideosink";
 
+  /* Configure audio filter if needed */
+  if (recorder->audio_output_caps) {
+    gchar *filter_desc = NULL;
+    GstElement *audio_filter = NULL;
+
+    filter_desc = g_strdup_printf ("%s\"%s\"", "capsfilter caps=",
+        gst_caps_to_string (recorder->audio_output_caps));
+    GST_INFO_OBJECT (recorder->camerabin, "audio filter description: %s", filter_desc);
+
+    audio_filter = gst_parse_bin_from_description (filter_desc, TRUE, NULL);
+    if (audio_filter) {
+      g_object_set (recorder->camerabin, "audio-filter", audio_filter, NULL);
+      g_object_unref (audio_filter);
+    }
+    g_free (filter_desc);
+  }
+
   /* configure used elements */
   res &=
-      setup_pipeline_element (recorder->camerabin, "audio-source", recorder->audiosrc_name, NULL);
+      setup_pipeline_element (recorder->camerabin, "audio-source", recorder->audiosrc_name, &audio_src);
+
+  if (audio_src && g_strcmp0(recorder->audiosrc_name, "pipewiresrc") == 0) {
+    g_object_set (audio_src, "path", recorder->audiodevice_name, NULL);
+    g_object_set (audio_src, "provide-clock", FALSE, NULL);
+    g_object_set (audio_src, "use-bufferpool", FALSE, NULL);
+  }
+
+  if (recorder->record_screen) {
+    res &=
+      setup_pipeline_element (recorder->camerabin, "video-filter", "autovideoconvert", NULL);
+  }
+
   res &=
       setup_pipeline_element (recorder->camerabin, "viewfinder-sink", recorder->vfsink_name, &sink);
   res &=
@@ -1572,9 +1630,28 @@ static REresult set_audio_source(RecorderEngineHandle handle, REuint32 as)
     { RE_AUDIO_SOURCE_DEFAULT, (REchar *)"pulsesrc" },
     { RE_AUDIO_SOURCE_MIC, (REchar *)"pulsesrc" },
     { RE_AUDIO_SOURCE_TEST, (REchar *)"audiotestsrc" },
+    { RE_AUDIO_SOURCE_PIPEWIRE, (REchar *)"pipewiresrc" },
   };
 
   recorder->audiosrc_name = key_value_pair (as, kKeyMap, sizeof(kKeyMap));
+
+  return RE_RESULT_SUCCESS;
+}
+
+static REresult set_audio_id(RecorderEngineHandle handle, REuint32 audioId)
+{
+  RecorderEngine *h = (RecorderEngine *)(handle);
+  gRecorderEngine *recorder = (gRecorderEngine *)(h->pData);
+
+  if (recorder->audiodevice_name) {
+    g_free (recorder->audiodevice_name);
+    recorder->audiodevice_name = NULL;
+  }
+
+  if (strcmp (recorder->audiosrc_name, "pipewiresrc") == 0)
+    recorder->audiodevice_name = g_strdup_printf ("%d", audioId);
+
+  GST_INFO ("chose audio device %s", recorder->audiodevice_name);
 
   return RE_RESULT_SUCCESS;
 }
@@ -1599,6 +1676,58 @@ static REresult set_audio_channel(RecorderEngineHandle handle, REuint32 channels
   return RE_RESULT_SUCCESS;
 }
 
+static REresult set_audio_output_settings(RecorderEngineHandle handle, RERawAudioSettings *audioProperty)
+{
+  RecorderEngine *h = (RecorderEngine *)(handle);
+  gRecorderEngine *recorder = (gRecorderEngine *)(h->pData);
+  gchar *format = NULL;
+  int sample_rate = 0;
+  int channels = 0;
+
+  if (recorder->audio_output_caps) {
+    gst_caps_unref (recorder->audio_output_caps);
+    recorder->audio_output_caps = NULL;
+  }
+
+  sample_rate = audioProperty->sampleRate;
+  channels = audioProperty->channels;
+  if (audioProperty->sampleFormat == 8) {
+    format = "S8";
+  } else if (audioProperty->sampleFormat == 16) {
+    format = "S16LE";
+  } else if (audioProperty->sampleFormat == 24) {
+    format = "S24LE";
+  } else if (audioProperty->sampleFormat == 32) {
+    format = "S32LE";
+  }
+
+  /* Set default parameters for screen recording */
+  if (recorder->record_screen) {
+    if (!format) {
+      format = "S16LE";
+    }
+    if (!sample_rate) {
+      sample_rate = 48000;
+    }
+    if (!channels) {
+      channels = 2;
+    }
+  }
+
+  if (!format || !sample_rate || !channels) {
+    return RE_RESULT_SUCCESS;
+  }
+
+  recorder->audio_output_caps = gst_caps_new_full (
+      gst_structure_new ("audio/x-raw",
+      "format", G_TYPE_STRING, format,
+      "rate", G_TYPE_INT, sample_rate,
+      "channels", G_TYPE_INT, channels, NULL),
+      NULL);
+
+  return RE_RESULT_SUCCESS;
+}
+
 static REresult set_video_source(RecorderEngineHandle handle, REuint32 vs)
 {
   RecorderEngine *h = (RecorderEngine *)(handle);
@@ -1611,6 +1740,7 @@ static REresult set_video_source(RecorderEngineHandle handle, REuint32 vs)
     { RE_VIDEO_SOURCE_IMXCAMERA, (REchar *)"imxv4l2src" },
     { RE_VIDEO_SOURCE_TEST, (REchar *)"videotestsrc" },
     { RE_VIDEO_SOURCE_SCREEN, (REchar *)"ximagesrc ! queue ! imxcompositor_ipu" },
+    { RE_VIDEO_SOURCE_PIPEWIRE, (REchar *)"pipewiresrc" },
   };
 
   recorder->videosrc_name = key_value_pair (vs, kKeyMap, sizeof(kKeyMap));
@@ -1628,9 +1758,25 @@ static REresult set_camera_id(RecorderEngineHandle handle, REuint32 cameraId)
     recorder->videodevice_name = NULL;
   }
 
-  recorder->videodevice_name = g_strdup_printf ("/dev/video%d", cameraId);
+  if (strcmp (recorder->videosrc_name, "pipewiresrc") == 0)
+    recorder->videodevice_name = g_strdup_printf ("%d", cameraId);
+  else
+    recorder->videodevice_name = g_strdup_printf ("/dev/video%d", cameraId);
 
   GST_INFO ("chose video device %s", recorder->videodevice_name);
+
+  return RE_RESULT_SUCCESS;
+}
+
+static REresult record_screen (RecorderEngineHandle handle, REboolean bRecordScreen)
+{
+  RecorderEngine *h = (RecorderEngine *)(handle);
+  gRecorderEngine *recorder = (gRecorderEngine *)(h->pData);
+
+  recorder->record_screen = bRecordScreen;
+  if (recorder->record_screen) {
+    recorder->imagepp_name = "autovideoconvert";
+  }
 
   return RE_RESULT_SUCCESS;
 }
@@ -1733,6 +1879,31 @@ static REresult set_camera_output_settings(RecorderEngineHandle handle, RERawVid
       recorder->camera_output_caps = NULL;
     }
 
+    /* pipewiresrc applies DMA DRM caps when recording screen */
+    if (g_strcmp0(recorder->videosrc_name, "pipewiresrc") == 0 &&
+        recorder->record_screen) {
+      GstVideoFormat fmt;
+      guint64 modifier;
+      guint32 drm_fourcc;
+      gchar *drm_fmt_str;
+
+      fmt = gst_video_format_from_string (video_format_name);
+      drm_fourcc = gst_video_dma_drm_format_from_gst_format (fmt, &modifier);
+      if (drm_fourcc == DRM_FORMAT_INVALID)
+        goto done;
+
+      drm_fmt_str = gst_video_dma_drm_fourcc_to_string (drm_fourcc, modifier);
+      recorder->camera_output_caps = gst_caps_new_full (gst_structure_new ("video/x-raw",
+          "format", G_TYPE_STRING, "DMA_DRM",
+          "drm-format", G_TYPE_STRING, drm_fmt_str,
+          "width", G_TYPE_INT, recorder->image_width,
+          "height", G_TYPE_INT, recorder->image_height,
+          NULL), NULL);
+      GstCapsFeatures *f = gst_caps_features_new (GST_CAPS_FEATURE_MEMORY_DMABUF, NULL);
+      gst_caps_set_features(recorder->camera_output_caps, 0, f);
+      goto done;
+    }
+
     if (recorder->mode == MODE_VIDEO) {
       if (recorder->view_framerate_num > 0)
         recorder->camera_output_caps = gst_caps_new_full (gst_structure_new ("video/x-raw",
@@ -1758,7 +1929,7 @@ static REresult set_camera_output_settings(RecorderEngineHandle handle, RERawVid
               NULL), NULL);
     }
   }
-
+done:
   return RE_RESULT_SUCCESS;
 }
 
@@ -2095,6 +2266,7 @@ static REresult init(RecorderEngineHandle handle)
   recorder->videosrc_name = NULL;
   recorder->videodevice_name = NULL;
   recorder->audiosrc_name = NULL;
+  recorder->audiodevice_name = NULL;
   recorder->wrappersrc_name = NULL;
   recorder->imagepp_name = NULL;
   recorder->vfsink_name = NULL;
@@ -2166,6 +2338,7 @@ static REresult init(RecorderEngineHandle handle)
   // recorder->target_shot_to_buffer;
   recorder->camera_caps = NULL;
   recorder->camera_output_caps = NULL;
+  recorder->audio_output_caps = NULL;
 
   g_mutex_init (&recorder->lock);
 
@@ -2403,6 +2576,16 @@ static REresult delete_it(RecorderEngineHandle handle)
     recorder->videodevice_name = NULL;
   }
 
+  if (recorder->audio_output_caps) {
+    gst_caps_unref (recorder->audio_output_caps);
+    recorder->audio_output_caps = NULL;
+  }
+
+  if (recorder->audiodevice_name) {
+    g_free (recorder->audiodevice_name);
+    recorder->audiodevice_name = NULL;
+  }
+
   g_mutex_clear (&recorder->lock);
   g_slice_free (gRecorderEngine, recorder);
   g_slice_free (RecorderEngine, h);
@@ -2434,12 +2617,15 @@ RecorderEngine * recorder_engine_create()
   }
 
   h->set_audio_source = set_audio_source;
+  h->set_audio_id = set_audio_id;
   h->get_audio_supported_sample_rate = get_audio_supported_sample_rate;
   h->set_audio_sample_rate = set_audio_sample_rate;
   h->get_audio_supported_channel = get_audio_supported_channel;
   h->set_audio_channel = set_audio_channel;
+  h->set_audio_output_settings = set_audio_output_settings;
   h->set_video_source = set_video_source;
   h->set_camera_id = set_camera_id;
+  h->record_screen = record_screen;
   h->get_camera_capabilities = get_camera_capabilities;
   h->set_camera_output_settings = set_camera_output_settings;
   h->disable_viewfinder = disable_viewfinder;
