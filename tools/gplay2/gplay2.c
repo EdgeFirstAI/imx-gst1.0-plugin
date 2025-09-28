@@ -26,7 +26,7 @@
  */
 
 
-#include <termio.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <stdio.h>
