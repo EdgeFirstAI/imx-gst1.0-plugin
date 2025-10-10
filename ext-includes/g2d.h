@@ -42,6 +42,7 @@
  *	2024-07-12         Guangliu Ding     2.2            support RGBA1010102 and GRAY8
  *	2024-11-13         Guangliu Ding     2.3            support deinterlace/48bit address/dct api
  *	2025-04-17         Erkai Ji          2.4            Add PXP version support
+ *	2025-08-25         Guangliu Ding     2.5            support dmabuf fd in src/dst buffer
 
 */
 
@@ -53,7 +54,7 @@ extern "C"  {
 #endif
 
 #define G2D_VERSION_MAJOR   2
-#define G2D_VERSION_MINOR   4
+#define G2D_VERSION_MINOR   5
 #define G2D_VERSION_PATCH   0
 
 enum g2d_format
@@ -80,6 +81,7 @@ enum g2d_format
 
      G2D_RGBA1010102          = 16,    /* [0:9] Red;   [10:19] Green; [20:29] Blue; [30:31] Alpha     */
 
+     G2D_GRAY10               = 18,    /* [0:9] Gray;  [10:15] don't care                             */
      G2D_GRAY8                = 19,    /* [0:7] Gray                                                  */
 
 //yuv formats
