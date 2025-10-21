@@ -406,19 +406,19 @@ static gint imx_pxp_do_channel(Imx2DDevicePxp *pxp)
   gint ret = 0;
   ret = pxp_config_channel(&pxp->pxp_chan, &pxp->config);
   if (ret < 0) {
-    GST_ERROR("pxp config channel fail (%d)", ret);
+    GST_ERROR("pxp config channel fail (%d) system error: %s", ret, g_strerror (errno));
     return -1;
   }
 
   ret = pxp_start_channel(&pxp->pxp_chan);
   if (ret < 0) {
-    GST_ERROR("pxp start channel fail (%d)", ret);
+    GST_ERROR("pxp start channel fail (%d) system error: %s", ret, g_strerror (errno));
     return -1;
   }
 
-  ret = pxp_wait_for_completion(&pxp->pxp_chan, 3);
+  ret = pxp_wait_for_completion(&pxp->pxp_chan, 1);
   if (ret < 0) {
-    GST_ERROR("pxp wait for completion fail (%d)", ret);
+    GST_ERROR("pxp wait for completion fail ret (%d)system error: %s", ret, g_strerror (errno));
     return -1;
   }
 
