@@ -11,7 +11,7 @@ import http.server
 import signal
 from enum import Enum
 
-VERSION_STR = "PIPEWIRE_RECORDER_00.00.09"
+VERSION_STR = "PIPEWIRE_RECORDER_00.00.10"
 
 # Return result
 class Ret(Enum):
@@ -101,28 +101,47 @@ class PipewireBackend:
 
     def set_backend(self, is_enable):
         ret = Ret.OK
-        file_name = "/lib/systemd/system/weston.service"
-        keyword = "ExecStart=/usr/bin/weston"
-        append_str = " --backends=drm,pipewire"
+        file_name = "/etc/xdg/weston/weston.ini"
+        section_keyword = ["[", "]"]
+        core_section = "[core]"
+        append_str = "backends=drm,pipewire\n"
 
         try:
             with open(file_name, "r+", encoding="utf-8") as file:
                 lines = file.readlines()
                 file.seek(0)
                 file.truncate()
-                for line in lines:
-                    keyword_pos = line.find(keyword)
-                    append_str_pos = line.find(append_str)
+                need_check = False
 
-                    if keyword_pos >= 0 and append_str_pos == -1:
-                        line = line[:keyword_pos + len(keyword)] + append_str + line[keyword_pos + len(keyword):]
-                        print ("Add pipewire backend")
-                        ret = Ret.PARAM_CHANGE
-                    elif keyword_pos >= 0 and append_str_pos >= 0:
-                        if is_enable == False:
-                            line = line[:append_str_pos] + line[append_str_pos + len(append_str):]
-                            #print (f"Remove pipewire backend, line={line}")
+                for line in lines:
+                    core_pos = line.find(core_section)
+                    if core_pos >= 0:
+                        need_check = True
+
+                    if need_check:
+                        append_str_pos = line.find(append_str)
+
+                        if append_str_pos == 0:
+                            if is_enable == False:
+                                line = "#" + line
+                                need_check = False
+                                print (f"Remove pipewire backend")
+                                ret = Ret.PARAM_CHANGE
+                        elif append_str_pos > 0:
+                            line = line[append_str_pos:]
+                            need_check = False
+                            print ("Found pipewire backend, enable it")
                             ret = Ret.PARAM_CHANGE
+                        elif core_pos == -1:
+                            # Find new section
+                            left_section_pos = line.find(section_keyword[0])
+                            right_section_pos = line.find(section_keyword[1])
+                            if left_section_pos == 0 and right_section_pos > 2:
+                                line = append_str + line
+                                need_check = False
+                                print ("Add pipewire backend")
+                                ret = Ret.PARAM_CHANGE
+
                     file.write (line)
                 file.flush 
         except FileNotFoundError:
