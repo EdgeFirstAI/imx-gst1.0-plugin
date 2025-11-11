@@ -341,7 +341,7 @@ static gint imx_pxp_config_input(Imx2DDevice *device, Imx2DVideoInfo* in_info)
 
   Imx2DDevicePxp *pxp = (Imx2DDevicePxp *) (device->priv);
 
-  if (imx_chip_code() >= CC_MX943)
+  if (imx_chip_code() >= CC_MX94)
     map = pxp_in_fmts_map_v2;
   else
     map = pxp_in_fmts_map_v1;
@@ -376,7 +376,7 @@ static gint imx_pxp_config_output(Imx2DDevice *device, Imx2DVideoInfo* out_info)
 
   Imx2DDevicePxp *pxp = (Imx2DDevicePxp *) (device->priv);
 
-  if (imx_chip_code() >= CC_MX943)
+  if (imx_chip_code() >= CC_MX94)
     map = pxp_out_fmts_map_v2;
   else
     map = pxp_out_fmts_map_v1;
@@ -548,7 +548,7 @@ static gint imx_pxp_blend_without_alpha(Imx2DDevice *device,
   Imx2DDevicePxp *pxp = (Imx2DDevicePxp *) (device->priv);
   memset(&pxp->config.ol_param[0], 0, sizeof(struct pxp_layer_param));
 
-  if (imx_chip_code() >= CC_MX943)
+  if (imx_chip_code() >= CC_MX94)
     out_map = pxp_out_fmts_map_v2;
   else
     out_map = pxp_out_fmts_map_v1;
@@ -639,7 +639,7 @@ static gint imx_pxp_overlay(Imx2DDevice *device,
       return -1;
   }
 
-  if (imx_chip_code() >= CC_MX943) {
+  if (imx_chip_code() >= CC_MX94) {
     out_map = pxp_out_fmts_map_v2;
     in_map = pxp_in_fmts_map_v2;
   } else {
@@ -937,7 +937,7 @@ static gint imx_pxp_overlay(Imx2DDevice *device,
   if (is_format_has_alpha (orig_src_fmt)) {
     pxp->config.proc_data.combine_enable = 1;
     /* FIXME: seems imx943 don't need this code, will try to fix later */
-    if (imx_chip_code() < CC_MX943) {
+    if (imx_chip_code() < CC_MX94) {
       s0_alpha = &pxp->config.s0_param.alpha;
       s1_alpha = &pxp->config.ol_param[0].alpha;
 
@@ -1105,7 +1105,7 @@ static GList* imx_pxp_get_supported_in_fmts(Imx2DDevice* device)
   GList* list = NULL;
   const PxpFmtMap *map = NULL;
 
-  if (imx_chip_code() >= CC_MX943)
+  if (imx_chip_code() >= CC_MX94)
     map = pxp_in_fmts_map_v2;
   else
     map = pxp_in_fmts_map_v1;
@@ -1123,7 +1123,7 @@ static GList* imx_pxp_get_supported_out_fmts(Imx2DDevice* device)
   GList* list = NULL;
   const PxpFmtMap *map = NULL;
 
-  if (imx_chip_code() >= CC_MX943)
+  if (imx_chip_code() >= CC_MX94)
     map = pxp_out_fmts_map_v2;
   else
     map = pxp_out_fmts_map_v1;
