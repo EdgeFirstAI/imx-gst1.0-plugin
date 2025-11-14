@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2014-2015, Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright (c) 2014-2016, Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright 2018-2025 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -1056,9 +1057,9 @@ setup_pipeline (gRecorderEngine *recorder)
     g_object_set (audio_src, "use-bufferpool", FALSE, NULL);
   }
 
-  if (recorder->record_screen) {
+  if (recorder->record_screen && IS_IMX8Q()) {
     res &=
-      setup_pipeline_element (recorder->camerabin, "video-filter", "autovideoconvert", NULL);
+      setup_pipeline_element (recorder->camerabin, "video-filter", "imxvideoconvert_g2d", NULL);
   }
 
   res &=
@@ -1775,7 +1776,11 @@ static REresult record_screen (RecorderEngineHandle handle, REboolean bRecordScr
 
   recorder->record_screen = bRecordScreen;
   if (recorder->record_screen) {
-    recorder->imagepp_name = "autovideoconvert";
+    if (IS_IMX8Q() || IS_IMX95()) {
+      recorder->imagepp_name = "imxvideoconvert_g2d";
+    } else {
+      g_print ("Can not support snapshot function\n");
+    }
   }
 
   return RE_RESULT_SUCCESS;
