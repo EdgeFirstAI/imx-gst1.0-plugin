@@ -246,7 +246,9 @@ static int set_recoder_setting (RecorderEngine *recorder, REOptions * pOpt)
 {
   REuint64 free_size;
 
-  recorder->record_screen ((RecorderEngineHandle)recorder, pOpt->record_screen);
+  if (RE_RESULT_SUCCESS != recorder->record_screen ((RecorderEngineHandle)recorder, pOpt->record_screen)) {
+    return -1;
+  }
 
   /* Audio source interface */
   if (RE_RESULT_SUCCESS != recorder->set_audio_source (
