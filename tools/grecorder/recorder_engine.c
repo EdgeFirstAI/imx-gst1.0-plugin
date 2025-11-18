@@ -39,6 +39,7 @@
 #include "gstimxcommon.h"
 #include <gst/allocators/gstdmabuf.h>
 #include <libdrm/drm_fourcc.h>
+#include <gst/app/gstappsink.h>
 
 /*
  * debug logging
@@ -869,6 +870,33 @@ static void set_muxer_property (gRecorderEngine *recorder)
   }
 }
 
+static gboolean
+app_sink_propose_allocation (GstAppSink *appsink, GstQuery *query, gpointer user_data)
+{
+  GstCaps *caps;
+  GstBufferPool *pool = NULL;
+  gboolean need_pool;
+  guint size = 0;
+
+  gst_query_parse_allocation (query, &caps, &need_pool);
+  /* Amphion vpu encoder driver need at least 6 buffers */
+  gst_query_add_allocation_pool (query, pool, size, 6, 0);
+  GST_DEBUG ("appsink_propose_allocation\n");
+
+  return TRUE;
+}
+
+static GstFlowReturn
+app_sink_new_samples (GstAppSink * elt, gpointer user_data)
+{
+  GstSample *sample;
+
+  sample = gst_app_sink_pull_sample (GST_APP_SINK (elt));
+  gst_sample_unref (sample);
+
+  return GST_FLOW_OK;
+}
+
 static REresult
 setup_pipeline (gRecorderEngine *recorder)
 {
@@ -977,6 +1005,20 @@ setup_pipeline (gRecorderEngine *recorder)
       video_filter_str = g_strdup_printf ("%s\"%s\"", "capsfilter caps=",
           gst_caps_to_string (recorder->camera_output_caps));
     }
+
+    /* Amphion VPU encoder only support NV12 format,
+     * add i.MX video converter in camera source */
+    if (recorder->record_screen && IS_IMX8Q()) {
+      gchar *temp = NULL;
+      if (video_filter_str) {
+        temp = g_strdup_printf ("%s ! %s", video_filter_str, "imxvideoconvert_g2d");
+        g_free (video_filter_str);
+        video_filter_str = temp;
+      } else {
+        video_filter_str = g_strdup_printf ("%s", "imxvideoconvert_g2d");
+      }
+    }
+
     if (recorder->date_time) {
       gchar *temp = NULL;
       if (video_filter_str) {
@@ -1020,7 +1062,9 @@ setup_pipeline (gRecorderEngine *recorder)
   GST_INFO_OBJECT (recorder->camerabin, "view finder filter string: %s",
       recorder->viewfinder_filter);
 
-  if (recorder->disable_viewfinder || recorder->record_screen)
+  if (recorder->record_screen && IS_IMX8Q())
+    recorder->vfsink_name = "appsink";
+  else if (recorder->disable_viewfinder || recorder->record_screen)
     recorder->vfsink_name = "fakesink";
   else
     if (recorder->video_detect_name)
@@ -1057,13 +1101,22 @@ setup_pipeline (gRecorderEngine *recorder)
     g_object_set (audio_src, "use-bufferpool", FALSE, NULL);
   }
 
-  if (recorder->record_screen && IS_IMX8Q()) {
-    res &=
-      setup_pipeline_element (recorder->camerabin, "video-filter", "imxvideoconvert_g2d", NULL);
-  }
-
   res &=
       setup_pipeline_element (recorder->camerabin, "viewfinder-sink", recorder->vfsink_name, &sink);
+  if (recorder->record_screen && IS_IMX8Q()) {
+    GstAppSinkCallbacks callbacks = { 0, };
+
+    g_object_set (sink, "sync", FALSE, "enable-last-sample", FALSE, NULL);
+    callbacks.propose_allocation = app_sink_propose_allocation;
+    callbacks.new_sample = app_sink_new_samples;
+    gst_app_sink_set_callbacks ((GstAppSink *) sink, &callbacks, NULL, NULL);
+
+    /* Amphion vpu encoder only support NV12 format, add caps filter
+     * to guarantee that camera source can output NV12 format */
+    recorder->viewfinder_caps_str = g_strdup_printf ("video/x-raw(memory:DMABuf), "
+      "format=DMA_DRM, drm-format=NV12");
+  }
+
   res &=
       setup_pipeline_element_bin (recorder->camerabin, "viewfinder-filter", 
           recorder->viewfinder_filter, NULL);
@@ -2592,6 +2645,11 @@ static REresult delete_it(RecorderEngineHandle handle)
   if (recorder->audiodevice_name) {
     g_free (recorder->audiodevice_name);
     recorder->audiodevice_name = NULL;
+  }
+
+  if (recorder->viewfinder_caps_str) {
+    g_free (recorder->viewfinder_caps_str);
+    recorder->viewfinder_caps_str = NULL;
   }
 
   g_mutex_clear (&recorder->lock);
