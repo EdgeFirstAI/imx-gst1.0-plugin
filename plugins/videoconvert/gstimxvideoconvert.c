@@ -1,6 +1,6 @@
 /* GStreamer IMX video convert plugin
  * Copyright (c) 2014-2016, Freescale Semiconductor, Inc. All rights reserved.
- * Copyright 2017-2020 NXP
+ * Copyright 2017-2025 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -1571,6 +1571,15 @@ static gboolean imx_video_convert_decide_allocation(GstBaseTransform *transform,
         allocator = NULL;
         gst_object_unref (pool);
       }
+    }
+  } else {
+    GST_DEBUG_OBJECT(imxvct, "No pool information from downstream");
+    /* Use the existing pool configuration */
+    if (imxvct->self_out_pool) {
+      config = gst_buffer_pool_get_config (imxvct->self_out_pool);
+      gst_buffer_pool_config_get_params (config, NULL, &size, &min, &max);
+      gst_structure_free (config);
+      size = MAX(size, vinfo.size);
     }
   }
 
