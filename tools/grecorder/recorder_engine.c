@@ -1006,9 +1006,9 @@ setup_pipeline (gRecorderEngine *recorder)
           gst_caps_to_string (recorder->camera_output_caps));
     }
 
-    /* Amphion VPU encoder only support NV12 format,
+    /* Amphion VPU encoder supports NV12 and i.MX952 supports NV12/I420/NV21,
      * add i.MX video converter in camera source */
-    if (recorder->record_screen && IS_IMX8Q()) {
+    if (recorder->record_screen && (IS_IMX8Q() || IS_IMX952())) {
       gchar *temp = NULL;
       if (video_filter_str) {
         temp = g_strdup_printf ("%s ! %s", video_filter_str, "imxvideoconvert_g2d");
@@ -1062,7 +1062,7 @@ setup_pipeline (gRecorderEngine *recorder)
   GST_INFO_OBJECT (recorder->camerabin, "view finder filter string: %s",
       recorder->viewfinder_filter);
 
-  if (recorder->record_screen && IS_IMX8Q())
+  if (recorder->record_screen && (IS_IMX8Q() || IS_IMX952()))
     recorder->vfsink_name = "appsink";
   else if (recorder->disable_viewfinder || recorder->record_screen)
     recorder->vfsink_name = "fakesink";
@@ -1103,7 +1103,7 @@ setup_pipeline (gRecorderEngine *recorder)
 
   res &=
       setup_pipeline_element (recorder->camerabin, "viewfinder-sink", recorder->vfsink_name, &sink);
-  if (recorder->record_screen && IS_IMX8Q()) {
+  if (recorder->record_screen && (IS_IMX8Q() || IS_IMX952())) {
     GstAppSinkCallbacks callbacks = { 0, };
 
     g_object_set (sink, "sync", FALSE, "enable-last-sample", FALSE, NULL);
@@ -1111,8 +1111,8 @@ setup_pipeline (gRecorderEngine *recorder)
     callbacks.new_sample = app_sink_new_samples;
     gst_app_sink_set_callbacks ((GstAppSink *) sink, &callbacks, NULL, NULL);
 
-    /* Amphion vpu encoder only support NV12 format, add caps filter
-     * to guarantee that camera source can output NV12 format */
+    /* Amphion VPU encoder supports NV12 format and i.MX952 supports NV12/I420/NV21,
+     * add caps filter to guarantee that camera source can output NV12 format */
     recorder->viewfinder_caps_str = g_strdup_printf ("video/x-raw(memory:DMABuf), "
       "format=DMA_DRM, drm-format=NV12");
   }
@@ -2039,7 +2039,7 @@ static REresult add_time_stamp(RecorderEngineHandle handle, REboolean bAddTimeSt
       if (IS_IMX8MM() || IS_IMX8MP() || IS_IMX8ULP() || IS_IMX95()) {
           recorder->date_time = DATE_TIME TIME_OVERLAY HW_COMPOSITOR "queue";
       }
-      else if (IS_IMX8Q()) {
+      else if (IS_IMX8Q() || IS_IMX952()) {
           recorder->date_time = DATE_TIME TIME_OVERLAY "queue";
       }
       else if (IS_IMX6Q()){
