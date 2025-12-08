@@ -205,7 +205,7 @@ struct _Imx2DDevice {
   gint (*convert)   (Imx2DDevice* device, Imx2DFrame *dst, Imx2DFrame *src);
   gint (*blend)        (Imx2DDevice* device, Imx2DFrame *dst, Imx2DFrame *src);
   gint (*blend_finish) (Imx2DDevice* device);
-  gint (*fill)         (Imx2DDevice* device, Imx2DFrame *dst, guint RGBA8888);
+  gint (*fill)         (Imx2DDevice* device, Imx2DFrame *src, Imx2DFrame *dst, guint RGBA8888);
 
   gint                 (*get_capabilities)        (Imx2DDevice* device);
   GList*               (*get_supported_in_fmts)   (Imx2DDevice* device);

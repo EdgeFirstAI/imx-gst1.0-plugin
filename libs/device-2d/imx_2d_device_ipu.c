@@ -896,8 +896,8 @@ static gint imx_ipu_blend_finish(Imx2DDevice *device)
   return 0;
 }
 
-static gint imx_ipu_fill_color(Imx2DDevice *device, Imx2DFrame *dst,
-                                guint RGBA8888)
+static gint imx_ipu_fill_color(Imx2DDevice *device, Imx2DFrame *src,
+                                Imx2DFrame *dst, guint RGBA8888)
 {
   //don't support color filling by hardware
   return -1;

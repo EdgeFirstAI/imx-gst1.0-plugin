@@ -741,8 +741,8 @@ static gint imx_g2d_blend_finish(Imx2DDevice *device)
   return 0;
 }
 
-static gint imx_g2d_fill_color(Imx2DDevice *device, Imx2DFrame *dst,
-                                guint RGBA8888)
+static gint imx_g2d_fill_color(Imx2DDevice *device, Imx2DFrame *src,
+                                Imx2DFrame *dst, guint RGBA8888)
 {
   void *g2d_handle = NULL;
   gint ret = 0;
