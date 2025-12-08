@@ -797,8 +797,8 @@ static gint imx_ocl_blend_finish (Imx2DDevice *device)
   return 0;
 }
 
-static gint imx_ocl_fill_color (Imx2DDevice *device, Imx2DFrame *dst,
-                                guint RGBA8888)
+static gint imx_ocl_fill_color (Imx2DDevice *device, Imx2DFrame *src,
+                                Imx2DFrame *dst, guint RGBA8888)
 {
   return 0;
 }

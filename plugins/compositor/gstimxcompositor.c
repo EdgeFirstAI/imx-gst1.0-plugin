@@ -1308,7 +1308,7 @@ gst_imxcompositor_aggregate_frames (GstVideoAggregator * vagg,
    * don't bother drawing the background at all. */
   if (imxcomp->background_enable) {
     if (device->fill) {
-      if(device->fill (device, &dst, imxcomp->background) < 0) {
+      if(device->fill (device, &src, &dst, imxcomp->background) < 0) {
         GST_LOG("fill color background by device failed");
         imx_2d_device_fill_background(&dst, imxcomp->background);
       }

@@ -2303,7 +2303,7 @@ static GstFlowReturn imx_video_convert_transform(GstBaseTransform * trans, GstBu
     if (device->fill) {
       if(((out_flags & COLORSPACE_MASK) == GST_VIDEO_FORMAT_FLAG_YUV &&
           device->device_type == IMX_2D_DEVICE_G2D) ||
-          device->fill (device, &dst, DEFAULT_IMXVIDEOCONVERT_BACKGROUND) < 0) {
+          device->fill (device, &src, &dst, DEFAULT_IMXVIDEOCONVERT_BACKGROUND) < 0) {
         GST_LOG("fill color background by device failed");
         need_sw_fill = TRUE;
       }
