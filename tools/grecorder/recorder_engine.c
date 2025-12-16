@@ -1829,7 +1829,7 @@ static REresult record_screen (RecorderEngineHandle handle, REboolean bRecordScr
 
   recorder->record_screen = bRecordScreen;
   if (recorder->record_screen) {
-    if (IS_IMX8Q() || IS_IMX95()) {
+    if (IS_IMX8Q() || IS_IMX95() || IS_IMX952()) {
       recorder->imagepp_name = "imxvideoconvert_g2d";
     } else if (IS_IMX8MP() || IS_IMX8MM()){
       g_print ("Can not support snapshot function\n");
