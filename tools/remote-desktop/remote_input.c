@@ -726,6 +726,7 @@ remote_input_connect (void *handle, char *ip)
       }
 
       struct sockaddr_in server_sockaddr;
+      memset(&server_sockaddr, 0, sizeof(struct sockaddr_in));
       server_sockaddr.sin_family = AF_INET;
       server_sockaddr.sin_port = htons (8887);
       server_sockaddr.sin_addr.s_addr = inet_addr (ip);
@@ -739,7 +740,9 @@ remote_input_connect (void *handle, char *ip)
 
       if (bind (socket_fd, (struct sockaddr *) &server_sockaddr,
               sizeof (server_sockaddr)) == -1) {
-        remote_input_debug ("Failed to bind\n");
+        remote_input_debug ("Failed to bind: %s\n", g_strerror (errno));
+        close (socket_fd);
+        socket_fd = -1;
         ret = RINPUT_FAIL;
         goto done;
       }

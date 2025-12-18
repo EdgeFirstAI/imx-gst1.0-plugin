@@ -13,3 +13,4 @@ if cc.has_header('linux/uinput.h')
     dependencies : [libinput_dep, libudev_dep, glib_dep],
   )
 endif
+install_data(sources: 'remote_desktop.py', install_dir : '/usr/bin/')
