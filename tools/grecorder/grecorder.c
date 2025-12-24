@@ -1,21 +1,21 @@
 /*
- * Copyright (c) 2014-2015, Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright (C) 2014-2015, Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright 2018-2021, 2023-2025 NXP
  *
  * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Library General Public
+ * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * version 2.1 of the License, or (at your option) any later version.
  *
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Library General Public License for more details.
+ * Lesser General Public License for more details.
  *
- * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
- */
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -966,9 +966,19 @@ int main(int argc, char* argv[])
       }
       else if(rep[0] == 'x')
       {
+        REboolean status = bstartmediatime;
         STOP_SHOW_MEDIATIME_INFO;
         RECORDER_STOP;
         bexit = RE_BOOLEAN_TRUE;
+        /* Camerabin will switch to preview sink again if stopping
+         * video capturing and will triggered caps negotiation again.
+         * For pipewiresrc, should not change its status from playing
+         * to paused when performing caps negotiation, otherwise it can
+         * print error log. Therefore need to wait for some time to exit
+         */
+        if (options.record_screen && status) {
+          g_usleep (300000);
+        }
       }
       else if(rep[0] == 'c')
       {
