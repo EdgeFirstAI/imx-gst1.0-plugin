@@ -535,6 +535,76 @@ static gint imx_pxp_convert(Imx2DDevice *device,
   return imx_pxp_do_channel(pxp);
 }
 
+static gint imx_pxp_fill_color(Imx2DDevice *device, Imx2DFrame *src,
+                                Imx2DFrame *dst, guint RGBA8888)
+{
+  if (!device || !device->priv)
+    return -1;
+
+  Imx2DDevicePxp *pxp = (Imx2DDevicePxp *) (device->priv);
+  guint bgcolor;
+  gchar R,G,B,A,Y,U,V;
+  gdouble y,u,v;
+  gboolean convert_to_yuv = FALSE;
+  const GstVideoFormatInfo *src_finfo, *dst_finfo;
+
+  R = RGBA8888 & 0x000000FF;
+  G = (RGBA8888 & 0x0000FF00) >> 8;
+  B = (RGBA8888 & 0x00FF0000) >> 16;
+  A = (RGBA8888 & 0xFF000000) >> 24;
+
+  src_finfo = gst_video_format_get_info (src->info.fmt);
+  dst_finfo = gst_video_format_get_info (dst->info.fmt);
+
+  /* if input and output format are both YUV and does not need alpha
+   * blending, it will skip pxp CSC2 and directly uses the bgcolor we
+   * set here, so need to convert from RGB to YUV for this case.
+   */
+  if (src_finfo && GST_VIDEO_FORMAT_INFO_IS_YUV (src_finfo)) {
+    if (dst_finfo && GST_VIDEO_FORMAT_INFO_IS_YUV (dst_finfo)) {
+      if (src->alpha == 0xFF)
+        convert_to_yuv = TRUE;
+    }
+  }
+
+  if (convert_to_yuv) {
+    //BT.709
+    y = (0.213*R + 0.715*G + 0.072*B);
+    u = -0.117*R - 0.394*G + 0.511*B + 128;
+    v = 0.511*R - 0.464*G - 0.047*B + 128;
+
+    if (y > 255.0)
+      Y = 255;
+    else
+      Y = (gchar)y;
+    if (u < 0.0)
+      U = 0;
+    else
+      U = (gchar)u;
+    if (u > 255.0)
+      U = 255;
+    else
+      U = (gchar)u;
+    if (v < 0.0)
+      V = 0;
+    else
+      V = (gchar)v;
+    if (v > 255.0)
+      V = 255;
+    else
+      V = (gchar)v;
+    bgcolor = (A << 24) | (Y << 16) | (U << 8) | V;
+  } else {
+    bgcolor = (A << 24)| (R << 16) | (G << 8) | B;
+  }
+
+  pxp->config.proc_data.bgcolor = bgcolor;
+  pxp->background = RGBA8888;
+  GST_DEBUG ("fill background color as %x", bgcolor);
+
+  return 0;
+}
+
 static gint imx_pxp_blend_without_alpha(Imx2DDevice *device,
                                         Imx2DFrame *dst, Imx2DFrame *src)
 {
@@ -558,6 +628,7 @@ static gint imx_pxp_blend_without_alpha(Imx2DDevice *device,
     BPP = fmt_map->bpp/8 + (fmt_map->bpp%8 ? 1 : 0);
 
   if (pxp->first_frame_done == FALSE) {
+    imx_pxp_fill_color(device, src, dst, pxp->config.proc_data.bgcolor);
     pxp->config.proc_data.drect.left = dst->crop.x;
     pxp->config.proc_data.drect.top = dst->crop.y;
     pxp->config.proc_data.drect.width =
@@ -1007,76 +1078,6 @@ static gint imx_pxp_blend_finish(Imx2DDevice *device)
 {
   Imx2DDevicePxp *pxp = (Imx2DDevicePxp *) (device->priv);
   pxp->first_frame_done = FALSE;
-  return 0;
-}
-
-static gint imx_pxp_fill_color(Imx2DDevice *device, Imx2DFrame *src,
-                                Imx2DFrame *dst, guint RGBA8888)
-{
-  if (!device || !device->priv)
-    return -1;
-
-  Imx2DDevicePxp *pxp = (Imx2DDevicePxp *) (device->priv);
-  guint bgcolor;
-  gchar R,G,B,A,Y,U,V;
-  gdouble y,u,v;
-  gboolean convert_to_yuv = FALSE;
-  const GstVideoFormatInfo *src_finfo, *dst_finfo;
-
-  R = RGBA8888 & 0x000000FF;
-  G = (RGBA8888 & 0x0000FF00) >> 8;
-  B = (RGBA8888 & 0x00FF0000) >> 16;
-  A = (RGBA8888 & 0xFF000000) >> 24;
-
-  src_finfo = gst_video_format_get_info (src->info.fmt);
-  dst_finfo = gst_video_format_get_info (dst->info.fmt);
-
-  /* if input and output format are both YUV and does not need alpha
-   * blending, it will skip pxp CSC2 and directly uses the bgcolor we
-   * set here, so need to convert from RGB to YUV for this case.
-   */
-  if (src_finfo && GST_VIDEO_FORMAT_INFO_IS_YUV (src_finfo)) {
-    if (dst_finfo && GST_VIDEO_FORMAT_INFO_IS_YUV (dst_finfo)) {
-      if (src->alpha == 0xFF)
-        convert_to_yuv = TRUE;
-    }
-  }
-
-  if (convert_to_yuv) {
-    //BT.709
-    y = (0.213*R + 0.715*G + 0.072*B);
-    u = -0.117*R - 0.394*G + 0.511*B + 128;
-    v = 0.511*R - 0.464*G - 0.047*B + 128;
-
-    if (y > 255.0)
-      Y = 255;
-    else
-      Y = (gchar)y;
-    if (u < 0.0)
-      U = 0;
-    else
-      U = (gchar)u;
-    if (u > 255.0)
-      U = 255;
-    else
-      U = (gchar)u;
-    if (v < 0.0)
-      V = 0;
-    else
-      V = (gchar)v;
-    if (v > 255.0)
-      V = 255;
-    else
-      V = (gchar)v;
-    bgcolor = (A << 24) | (Y << 16) | (U << 8) | V;
-  } else {
-    bgcolor = (A << 24)| (R << 16) | (G << 8) | B;
-  }
-
-  pxp->config.proc_data.bgcolor = bgcolor;
-  pxp->background = RGBA8888;
-  GST_DEBUG ("fill background color as %x", bgcolor);
-
   return 0;
 }
 
