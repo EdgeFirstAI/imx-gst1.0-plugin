@@ -1,5 +1,5 @@
 /* GStreamer IMX openCL Device
- * Copyright 2023 NXP
+ * Copyright 2023-2025 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -99,7 +99,7 @@ static gint imx_ocl_open (Imx2DDevice *device)
   }
 
   /* Configure OCL memory type */
-  if (IS_IMX95()) {
+  if (IS_IMX95() || IS_IMX952()) {
     ocl->mem_type = OCL_MEM_TYPE_DEVICE;
   } else {
     ocl->mem_type = OCL_MEM_TYPE_GPU;
@@ -592,7 +592,7 @@ static gint imx_ocl_get_capabilities (Imx2DDevice* device)
 {
   gint capabilities = IMX_2D_DEVICE_CAP_CSC;
 
-  if (IS_IMX95()) {
+  if (IS_IMX95() || IS_IMX952()) {
     capabilities |= IMX_2D_DEVICE_CAP_WARP;
   }
 
@@ -809,7 +809,7 @@ static gboolean imx_ocl_config_warp_info (Imx2DDevice *device, Imx2DVideoWarp *v
   gsize file_size;
   OCL_MEM_BLOCK *ocl_mem;
 
-  if (!IS_IMX95()) {
+  if (!IS_IMX95() && !IS_IMX952()) {
     GST_WARNING("Don't support warp/dewarp operations\n");
     return FALSE;
   }
