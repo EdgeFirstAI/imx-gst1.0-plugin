@@ -1,6 +1,6 @@
 /* GStreamer IMX G2D Device
  * Copyright (c) 2014-2016, Freescale Semiconductor, Inc. All rights reserved.
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2020, 2022-2025 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -687,7 +687,7 @@ static gint imx_g2d_get_capabilities (Imx2DDevice* device)
   gint capabilities = IMX_2D_DEVICE_CAP_SCALE|IMX_2D_DEVICE_CAP_CSC \
                       | IMX_2D_DEVICE_CAP_ROTATE | IMX_2D_DEVICE_CAP_ALPHA
                       | IMX_2D_DEVICE_CAP_BLEND;
-  if (IS_IMX95()) {
+  if (IS_IMX95() || IS_IMX952()) {
     capabilities |= IMX_2D_DEVICE_CAP_WARP;
   }
 
