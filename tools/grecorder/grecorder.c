@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2014-2015, Freescale Semiconductor, Inc. All rights reserved.
- * Copyright 2018-2021, 2023-2025 NXP
+ * Copyright 2018-2021, 2023-2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -627,13 +627,13 @@ static int recorder_parse_options(int argc, char* argv[], REOptions * pOpt)
 
   while (1)
   {
-    static char long_options_desc[][128] = {
+    static char long_options_desc[][256] = {
       {"list camera supported video property"},
       {"audio input: 0->default(mic), 1->mic, 2->audiotestsrc, 3->pipewiresrc"},
       {"audio sample rate: 0->default(48000), 48000->48K ..."},
       {"audio channel: 0->default(2), 1->single channel, 2->dual channels ..."},
       {"video input: 0->default(autoplug), 1->v4l2src, 2->imxv4l2src, 3->videotestsrc, 5->pipewiresrc"},
-      {"camera id: 0->/dev/video0, 1->/dev/video1, 2->/dev/video2 ... $N->/dev/video$N"},
+      {"source id: camera record: 0->/dev/video0, 1->/dev/video1, ... $N->/dev/video$N, screen record: `weston.pipewire` id by `wpctl status` command. Please enable screen record first by `--record_screen` option"},
       {"camera output video format: 0->default(I420), 1->I420, 2->NV12, 3->YUYV, 4->UYVY, 5->BGRA, 6->BGRx, 7->RGB16"},
       {"camera output video width"},
       {"camera output video height"},
@@ -661,9 +661,9 @@ static int recorder_parse_options(int argc, char* argv[], REOptions * pOpt)
       {"max duration for recorded file(second)"},
       {"max file size for recorded file(Byte)"},
       {"fragment duration in millisecond: the default value is 1000ms for fmp4 and 500 ms for mkv"},
-      {"enable screen recording"},
-      {"audio id: audio id information"},
+      {"audio id: audio id information. screen record: audio sink node id which can be obtained by `wpctl status` command"},
       {"audio sample format: 8->8 bit, 16->16 bit singed, 24->24 bit singed, 32->32 bit singed"},
+      {"enable screen record. Configure weston.ini file before use. 1.Add new `[output]` section and `name=pipewire`,`mirror-of=HDMI-A-1`,`mode=1920x1080@60` 2.Add `backends=drm,pipewire` in `[core]` section. 3.Restart weston by `systemctl restart weston`"},
       {"display application log"},
       {0, 0, 0, 0}
     };
