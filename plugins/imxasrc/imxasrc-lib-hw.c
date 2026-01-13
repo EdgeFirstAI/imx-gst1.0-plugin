@@ -263,7 +263,7 @@ gboolean imx_asrc_hw_is_exist (void) {
       break;
   }
   if (i == 10) {
-    GST_ERROR ("ASRCHW: no asrc sound card found");
+    GST_WARNING ("ASRCHW: no asrc sound card found");
     return FALSE;
   }
 
