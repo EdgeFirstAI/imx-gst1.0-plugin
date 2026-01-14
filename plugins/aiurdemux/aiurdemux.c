@@ -3938,7 +3938,10 @@ void aiurdemux_check_buffer_sending_status (GstAiurDemux * demux, AiurDemuxStrea
   }
 
   /* For playbin3, the buffer may be discarded by h265parse or other parser, need check it */
-  if (stream->valid && (stream->type == MEDIA_VIDEO)) {
+  /* Some special stream's first audio buffer starts from 0:00:05.555000000, but decoder only
+   * can output one frame only after receiving second audio buffer. If seek to the beginning,
+   * need send gap event to finish audiosink preroll, otherwise may cause video hang. */
+  if (stream->valid && (stream->type == MEDIA_VIDEO || stream->type == MEDIA_AUDIO)) {
     /* query current queue status in multiqueue */
     query = gst_query_new_buffering (GST_FORMAT_TIME);
     if (gst_pad_peer_query (stream->pad, query)) {
