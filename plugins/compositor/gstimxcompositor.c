@@ -843,7 +843,9 @@ gst_imxcompositor_negotiated_caps (GstAggregator * vagg, GstCaps * caps)
         config = gst_buffer_pool_get_config(pool);
         gst_buffer_pool_config_get_allocator(config, &allocator, NULL);
 
-        if (allocator && GST_IS_ALLOCATOR_PHYMEM(allocator)) {
+        if (allocator && (GST_IS_ALLOCATOR_PHYMEM(allocator)
+            || GST_IS_DMABUFHEAPS_ALLOCATOR(allocator)
+            || GST_IS_DMABUF_ALLOCATOR(allocator))) {
           gst_imxcompositor_set_pool_alignment(caps, pool);
           if (min < IMX_COMPOSITOR_OUTPUT_POOL_MIN_BUFFERS)
             min = IMX_COMPOSITOR_OUTPUT_POOL_MIN_BUFFERS;
