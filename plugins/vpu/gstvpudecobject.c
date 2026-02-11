@@ -27,7 +27,7 @@
 #endif
 
 #include "gstimxcommon.h"
-#include <gst/allocators/gstphymemmeta.h>
+#include <gst/video/gstphymemmeta.h>
 #include <gst/allocators/gstdmabufmeta.h>
 #include <gst/allocators/gstphysmemory.h>
 #include "gstvpuallocator.h"

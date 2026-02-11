@@ -18,7 +18,6 @@
  */
 
 #include <string.h>
-#include <gst/video/gstvideopool.h>
 #include "gstimxv4l2src.h"
 #include "gstimxv4l2allocator.h"
 

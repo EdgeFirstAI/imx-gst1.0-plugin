@@ -29,7 +29,7 @@
 #include <gst/video/video-overlay-composition.h>
 #include <gst/allocators/gstdmabuf.h>
 #include "imxoverlaycompositionmeta.h"
-#include <gst/allocators/gstphymemmeta.h>
+#include <gst/video/gstphymemmeta.h>
 #ifdef USE_DMABUFHEAPS
 #include <gst/allocators/gstdmabufheaps.h>
 #endif

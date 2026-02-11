@@ -22,7 +22,6 @@
 #include <config.h>
 #endif
 
-#include <gst/video/gstvideopool.h>
 #include <gst/allocators/gstdmabuf.h>
 #include "gstosink.h"
 #include "osink_object.h"
@@ -33,7 +32,7 @@
 #ifdef USE_ION
 #include <gst/allocators/gstionmemory.h>
 #endif
-#include <gst/allocators/gstphymemmeta.h>
+#include <gst/video/gstphymemmeta.h>
 #include "gstimxvideooverlay.h"
 #include "imxoverlaycompositionmeta.h"
 

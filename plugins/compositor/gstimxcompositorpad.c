@@ -23,7 +23,7 @@
 #endif
 
 #include <string.h>
-#include <gst/allocators/gstphymemmeta.h>
+#include <gst/video/gstphymemmeta.h>
 #include <gst/allocators/gstdmabuf.h>
 #ifdef USE_DMABUFHEAPS
 #include <gst/allocators/gstdmabufheaps.h>

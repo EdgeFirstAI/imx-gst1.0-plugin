@@ -123,7 +123,7 @@
 #include <gst/allocators/gstdmabufmeta.h>
 #include <libdrm/drm_fourcc.h>
 #include <gst/allocators/gstallocatorphymem.h>
-#include <gst/allocators/gstphymemmeta.h>
+#include <gst/video/gstphymemmeta.h>
 #ifdef USE_DMABUFHEAPS
 #include <gst/allocators/gstdmabufheaps.h>
 #endif
