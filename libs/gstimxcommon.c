@@ -24,7 +24,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <linux/version.h>
-#include <linux/dma-buf.h>
+#include <imx/linux/dma-buf.h>
 #ifdef USE_ION
 #include <linux/ion.h>
 #endif

@@ -1555,7 +1555,8 @@ static gboolean imx_video_convert_decide_allocation(GstBaseTransform *transform,
         gst_buffer_pool_config_get_allocator(config, &allocator, NULL);
         if (allocator
           && (GST_IS_DMABUFHEAPS_ALLOCATOR(allocator)
-          || GST_IS_ALLOCATOR_PHYMEM(allocator))) {
+          || GST_IS_ALLOCATOR_PHYMEM(allocator)
+          || GST_IS_DMABUF_ALLOCATOR(allocator))) {
           size = MAX(size, vinfo.size);
           new_pool = FALSE;
           break;
@@ -1619,6 +1620,8 @@ static gboolean imx_video_convert_decide_allocation(GstBaseTransform *transform,
   }
 
   imxvct->out_pool = pool;
+  imxvct->background_filled = FALSE;
+  imxvct->last_filled_outbuf = NULL;
   gst_buffer_pool_config_get_params (config, &outcaps, &size, &min, &max);
 
   GST_DEBUG_OBJECT(imxvct, "pool config:  outcaps: %" GST_PTR_FORMAT "  "
@@ -1720,6 +1723,8 @@ static gboolean imx_video_convert_set_info(GstVideoFilter *filter,
     gst_base_transform_set_passthrough((GstBaseTransform*)filter, FALSE);
 
   imxvct->pool_config_update = TRUE;
+  imxvct->background_filled = FALSE;
+  imxvct->last_filled_outbuf = NULL;
 
   GST_DEBUG ("set info from %" GST_PTR_FORMAT " to %" GST_PTR_FORMAT, in, out);
 
@@ -2296,39 +2301,48 @@ static GstFlowReturn imx_video_convert_transform(GstBaseTransform * trans, GstBu
   dst.outbuf = outbuf;
 
   if (imxvct->keep_ratio) {
-    GstVideoFormatFlags out_flags;
-    gboolean need_sw_fill = FALSE;
+    /* Skip fill if same output buffer was already pre-filled */
+    gboolean need_fill = !imxvct->background_filled
+                         || outbuf != imxvct->last_filled_outbuf;
 
-    out_flags = GST_VIDEO_FORMAT_INFO_FLAGS (filter->out_info.finfo);
-    if (device->fill) {
-      if(((out_flags & COLORSPACE_MASK) == GST_VIDEO_FORMAT_FLAG_YUV &&
-          device->device_type == IMX_2D_DEVICE_G2D) ||
-          device->fill (device, &src, &dst, DEFAULT_IMXVIDEOCONVERT_BACKGROUND) < 0) {
-        GST_LOG("fill color background by device failed");
+    if (need_fill) {
+      GstVideoFormatFlags out_flags;
+      gboolean need_sw_fill = FALSE;
+
+      out_flags = GST_VIDEO_FORMAT_INFO_FLAGS (filter->out_info.finfo);
+      if (device->fill) {
+        if(((out_flags & COLORSPACE_MASK) == GST_VIDEO_FORMAT_FLAG_YUV &&
+            device->device_type == IMX_2D_DEVICE_G2D) ||
+            device->fill (device, &src, &dst, DEFAULT_IMXVIDEOCONVERT_BACKGROUND) < 0) {
+          GST_LOG("fill color background by device failed");
+          need_sw_fill = TRUE;
+        }
+      } else {
+        GST_LOG("device has no fill interface");
         need_sw_fill = TRUE;
       }
-    } else {
-      GST_LOG("device has no fill interface");
-      need_sw_fill = TRUE;
-    }
 
-    // set black background when need keep ratio
-    if (need_sw_fill) {
-      GstMapInfo map;
-      gboolean need_unmap = FALSE;
+      // set black background when need keep ratio
+      if (need_sw_fill) {
+        GstMapInfo map;
+        gboolean need_unmap = FALSE;
 
-      if (!dst.mem->vaddr) {
-        if(gst_buffer_map (outbuf, &map, GST_MAP_WRITE)) {
-          dst.mem->vaddr = map.data;
-          dst.mem->size = map.size;
-          need_unmap = TRUE;
-          GST_LOG("map background buffer %p size %" G_GSIZE_FORMAT, dst.mem->vaddr, dst.mem->size);
+        if (!dst.mem->vaddr) {
+          if(gst_buffer_map (outbuf, &map, GST_MAP_WRITE)) {
+            dst.mem->vaddr = map.data;
+            dst.mem->size = map.size;
+            need_unmap = TRUE;
+            GST_LOG("map background buffer %p size %" G_GSIZE_FORMAT, dst.mem->vaddr, dst.mem->size);
+          }
         }
-      }
-      imx_2d_device_fill_background (&dst, DEFAULT_IMXVIDEOCONVERT_BACKGROUND);
+        imx_2d_device_fill_background (&dst, DEFAULT_IMXVIDEOCONVERT_BACKGROUND);
 
-      if (need_unmap)
-        gst_buffer_unmap (outbuf, &map);
+        if (need_unmap)
+          gst_buffer_unmap (outbuf, &map);
+      }
+
+      imxvct->last_filled_outbuf = outbuf;
+      imxvct->background_filled = TRUE;
     }
   }
 
@@ -2712,6 +2726,8 @@ gst_imx_video_convert_init (GstImxVideoConvert * imxvct)
       imxvct->video_warp.enable = GST_IMX_VIDEO_WARP_DEFAULT;
       imxvct->video_warp.map_format = GST_IMX_VIDEO_WARP_MAP_DEFAULT;
       imxvct->keep_ratio = GST_IMX_VIDEO_KEEP_RATIO_DEFAULT;
+      imxvct->last_filled_outbuf = NULL;
+      imxvct->background_filled = FALSE;
       imxvct->total_time = 0;
       imxvct->total_frames = 0;
     }
