@@ -74,7 +74,7 @@ gstfsl = library('gstfsl-@0@'.format(api_version),
   soversion : 0,
   install : true,
   install_dir : libs_install_dir,
-  dependencies : [gst_dep, gst_base_dep, gst_video_dep, gst_allocator_dep, bad_allocator_dep],
+  dependencies : [gst_dep, gst_base_dep, gst_video_dep, gst_allocator_dep, bad_allocator_dep, imx_opencl_dep],
 )
 
 gstfsl_dep = declare_dependency(link_with : gstfsl)

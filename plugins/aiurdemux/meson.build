@@ -9,7 +9,7 @@ gstaiurdemux = library('gstaiurdemux',
   c_args: version_flags + aiurdemux_cflags,
   link_args : gst_plugin_ldflags + ['-ldl'],
   include_directories : [extinc, libsinc],
-  dependencies : [gst_dep, gst_base_dep, gst_plugins_base_dep, gsttag_dep, gstriff_dep, gstfsl_dep],
+  dependencies : [gst_dep, gst_base_dep, gst_plugins_base_dep, gsttag_dep, gstriff_dep, gstfsl_dep, imx_parser_dep],
   install : true,
   install_dir : plugins_install_dir,
 )

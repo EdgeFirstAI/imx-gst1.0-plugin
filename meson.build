@@ -98,6 +98,8 @@ gst_bad_base_dep = dependency('gstreamer-bad-base-' + api_version, version : '<=
 gst_bad_video_dep = dependency('gstreamer-bad-video-' + api_version, version : '<= 1.14.0', required: false)
 gst_bad_allocator_dep = dependency('gstreamer-bad-allocators-' + api_version, version : '<= 1.14.0', required: false)
 
+imx_opencl_dep = dependency('imx-opencl-converter' + api_version, required: false)
+
 if not gst_bad_base_dep.found()
   have_bad_base = false
 else
