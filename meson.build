@@ -1,6 +1,7 @@
 project('imx-gst1.0-plugin', 'c',
   version : '4.11.0',
   meson_version : '>= 0.48',
+  default_options : ['werror=true']
 )
 
 api_version = '1.0'
