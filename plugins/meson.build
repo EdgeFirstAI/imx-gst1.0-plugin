@@ -21,10 +21,6 @@ if cc.has_header('fsl_unia.h', dependencies: fslaudiocodec_dep)
   subdir('beepdec')
 endif
 
-if cc.has_header('mp3_enc_interface.h', dependencies: fslaudiocodec_dep)
-  subdir('mp3enc')
-endif
-
 have_g2d = false
 have_vpuwrapper = false
 have_v4l2 = false
