@@ -1,8 +1,6 @@
 imxspdifdemux_sources = ['gstspdifdemux.c']
 imxmspdifdemux_headers = ['gstspdifdemux.h']
-spdifparser_lib_dir = imx_parser_dep.get_pkgconfig_variable('libdir')
-spdifparser_lib = 'spdifparser'
-#['-L' + sys_root + spdifparser_lib_dir, '-l' + spdifparser_lib]
+
 gst_audio_dep = cc.find_library('gstaudio-' + api_version)
 
 gstspdifdemux= library('gstspdifdemux',

@@ -14,7 +14,7 @@ gstaiurdemux = library('gstaiurdemux',
   install_dir : plugins_install_dir,
 )
 
-imxparser_libdir = imx_parser_dep.get_pkgconfig_variable('libdir')
+imxparser_libdir = join_paths(imx_parser_dep.get_pkgconfig_variable('libdir'), 'imx-mm/parser')
 
 aiur_registry = configuration_data()
 aiur_registry_install_dir = '@0@/share'.format(get_option('prefix'))
