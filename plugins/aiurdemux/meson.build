@@ -19,33 +19,20 @@ imxparser_libdir = join_paths(imx_parser_dep.get_pkgconfig_variable('libdir'), '
 aiur_registry = configuration_data()
 aiur_registry_install_dir = '@0@/share'.format(get_option('prefix'))
 
+# asf/rm binary release core parser still need arm11/arm9 version
 check_imxparser = [
   ['asf', 'arm9'],
   ['asf', 'arm11'],
   ['asf', 'arm'],
-  ['avi', 'arm9'],
-  ['avi', 'arm11'],
   ['avi', 'arm'],
-  ['flv', 'arm9'],
-  ['flv', 'arm11'],
   ['flv', 'arm'],
-  ['mpg2', 'arm9'],
-  ['mpg2', 'arm11'],
   ['mpg2', 'arm'],
-  ['mp4', 'arm9'],
-  ['mp4', 'arm11'],
   ['mp4', 'arm'],
-  ['mkv', 'arm9'],
-  ['mkv', 'arm11'],
   ['mkv', 'arm'],
-  ['ogg', 'arm9'],
-  ['ogg', 'arm11'],
   ['ogg', 'arm'],
   ['rm', 'arm9'],
   ['rm', 'arm11'],
   ['rm', 'arm'],
-  ['ape', 'arm9'],
-  ['ape', 'arm11'],
   ['ape', 'arm'],
 ]
 

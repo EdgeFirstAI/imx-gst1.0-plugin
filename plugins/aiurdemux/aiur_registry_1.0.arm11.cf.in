@@ -6,27 +6,27 @@ library = @asf_arm11_SONAME@
 
 [AVI]
 mime= video/x-msvideo
-library = @avi_arm11_SONAME@
+library = @avi_arm_SONAME@
 
 [FlashVideo]
 mime = video/x-flv
-library = @flv_arm11_SONAME@
+library = @flv_arm_SONAME@
 
 [MPEG]
 mime= video/mpeg, mpegversion=(int)[1,2], systemstream=true; video/mpegts, systemstream=true; video/x-cdxa
-library = @mpg2_arm11_SONAME@
+library = @mpg2_arm_SONAME@
 
 [MOV/MP4/3GP]
 mime= video/quicktime; audio/x-m4a; application/x-3gp
-library = @mp4_arm11_SONAME@
+library = @mp4_arm_SONAME@
 
 [Matroska]
 mime= video/x-matroska ; video/webm
-library = @mkv_arm11_SONAME@
+library = @mkv_arm_SONAME@
 
 [OGG]
 mime= application/ogg; application/x-annodex; audio/ogg
-library = @ogg_arm11_SONAME@
+library = @ogg_arm_SONAME@
 
 [realmedia]
 mime = application/vnd.rn-realmedia
@@ -34,5 +34,5 @@ library = @rm_arm11_SONAME@
 
 [APE]
 mime = application/x-ape
-library = @ape_arm11_SONAME@
+library = @ape_arm_SONAME@
 
