@@ -11,7 +11,7 @@ vpuwrap_dep = dependency('libfslvpuwrap', required: false)
 subdir('compositor')
 subdir('videoconvert')
 
-imx_parser_dep = dependency('imx-parser', required: false)
+imx_parser_dep = dependency('imx-parser', version: '>=4.11.0', required: false)
 if cc.has_header('fsl_parser.h', dependencies: imx_parser_dep)
   subdir('aiurdemux')
 endif
