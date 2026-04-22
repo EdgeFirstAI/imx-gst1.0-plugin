@@ -1,5 +1,6 @@
 extinc = include_directories('../ext-includes')
 libsinc = include_directories('../libs')
+pluginsinc = include_directories('.')
 
 python3 = import('python').find_installation()
 sys_root = run_command(python3, '-c', 'import os; print(os.environ.get("PKG_CONFIG_SYSROOT_DIR"))').stdout().strip()
@@ -97,3 +98,5 @@ elif build_MX8 == 'yes' or build_MX9 == 'yes'
     subdir('vpu')
   endif
 endif
+
+subdir('imxsocfeatures')
