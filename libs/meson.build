@@ -6,6 +6,7 @@ gstfsl_sources = [
   'overlaycompositionmeta/imxoverlaycompositionmeta.c',
   'video-overlay/gstimxvideooverlay.c',
   'gstimxcommon.c',
+  'gstimxsocfeatures.c',
 ]
 
 gstfsl_headers = [
@@ -15,6 +16,7 @@ gstfsl_headers = [
   'device-2d/imx_2d_device_allocator.h',
   'overlaycompositionmeta/imxoverlaycompositionmeta.h',
   'video-overlay/gstimxvideooverlay.h',
+  'gstimxsocfeatures.h',
 ]
 
 v4l2core_sources = ['v4l2_core/gstimxv4l2.c']
@@ -78,4 +80,9 @@ gstfsl = library('gstfsl-@0@'.format(api_version),
 )
 
 gstfsl_dep = declare_dependency(link_with : gstfsl)
+
+install_data(
+  'imx_soc_features.ini',
+  install_dir: '/usr/share/'
+)
 
