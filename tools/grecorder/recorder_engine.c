@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2014-2016, Freescale Semiconductor, Inc. All rights reserved.
- * Copyright 2018-2025 NXP
+ * Copyright 2018-2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -36,7 +36,7 @@
 #include <gst/pbutils/encoding-profile.h>
 #include <gst/pbutils/encoding-target.h>
 #include "recorder_engine.h"
-#include "gstimxcommon.h"
+#include <gstimxsocfeatures.h>
 #include <gst/allocators/gstdmabuf.h>
 #include <libdrm/drm_fourcc.h>
 #include <gst/app/gstappsink.h>
@@ -1008,7 +1008,7 @@ setup_pipeline (gRecorderEngine *recorder)
 
     /* Amphion VPU encoder supports NV12 and i.MX952 supports NV12/I420/NV21,
      * add i.MX video converter in camera source */
-    if (recorder->record_screen && (IS_IMX8Q() || IS_IMX952())) {
+    if (recorder->record_screen && (imx_soc_in_group ("amphion") || imx_soc_is_chip ("MX952"))) {
       gchar *temp = NULL;
       if (video_filter_str) {
         temp = g_strdup_printf ("%s ! %s", video_filter_str, "imxvideoconvert_g2d");
@@ -1062,14 +1062,14 @@ setup_pipeline (gRecorderEngine *recorder)
   GST_INFO_OBJECT (recorder->camerabin, "view finder filter string: %s",
       recorder->viewfinder_filter);
 
-  if (recorder->record_screen && (IS_IMX8Q() || IS_IMX952()))
+  if (recorder->record_screen && ((imx_soc_in_group ("amphion") || imx_soc_is_chip ("MX952"))))
     recorder->vfsink_name = "appsink";
   else if (recorder->disable_viewfinder || recorder->record_screen)
     recorder->vfsink_name = "fakesink";
   else
     if (recorder->video_detect_name)
       recorder->vfsink_name = "imxv4l2sink";
-    else if (IS_IMX6Q())
+    else if (imx_soc_is_chip ("MX6Q"))
       recorder->vfsink_name = "overlaysink";
     else
       recorder->vfsink_name = "autovideosink";
@@ -1103,7 +1103,7 @@ setup_pipeline (gRecorderEngine *recorder)
 
   res &=
       setup_pipeline_element (recorder->camerabin, "viewfinder-sink", recorder->vfsink_name, &sink);
-  if (recorder->record_screen && (IS_IMX8Q() || IS_IMX952())) {
+  if (recorder->record_screen && (imx_soc_in_group ("amphion") || imx_soc_is_chip ("MX952"))) {
     GstAppSinkCallbacks callbacks = { 0, };
 
     g_object_set (sink, "sync", FALSE, "enable-last-sample", FALSE, NULL);
@@ -1829,9 +1829,9 @@ static REresult record_screen (RecorderEngineHandle handle, REboolean bRecordScr
 
   recorder->record_screen = bRecordScreen;
   if (recorder->record_screen) {
-    if (IS_IMX8Q() || IS_IMX95() || IS_IMX952()) {
+    if (imx_soc_has_feature ("g2d-dpuv1") || imx_soc_has_feature ("g2d-dpuv2")) {
       recorder->imagepp_name = "imxvideoconvert_g2d";
-    } else if (IS_IMX8MP() || IS_IMX8MM()){
+    } else if (imx_soc_is_chip ("MX8MP") || imx_soc_is_chip ("MX8MM")){
       g_print ("Can not support snapshot function\n");
     } else {
       g_print ("Can not support screen record function\n");
@@ -2036,13 +2036,13 @@ static REresult add_time_stamp(RecorderEngineHandle handle, REboolean bAddTimeSt
 
   if (bAddTimeStamp) {
       /* INFO: cannot use HAS_G2D, encoder on 8qm/qxp only support NV12 */
-      if (IS_IMX8MM() || IS_IMX8MP() || IS_IMX8ULP() || IS_IMX95()) {
+      if (imx_soc_in_group ("g2d") && !imx_soc_in_group ("MX")) {
           recorder->date_time = DATE_TIME TIME_OVERLAY HW_COMPOSITOR "queue";
       }
-      else if (IS_IMX8Q() || IS_IMX952()) {
+      else if (imx_soc_in_group ("amphion") || imx_soc_is_chip ("MX952")) {
           recorder->date_time = DATE_TIME TIME_OVERLAY "queue";
       }
-      else if (IS_IMX6Q()){
+      else if (imx_soc_is_chip ("MX6Q")){
           recorder->date_time = DATE_TIME TIME_OVERLAY "queue ! imxvideoconvert_ipu composition-meta-enable=true in-place=true ! queue";
       } else {
           recorder->date_time = NULL;
@@ -2060,7 +2060,7 @@ static REresult add_video_effect(RecorderEngineHandle handle, REuint32 videoEffe
   gRecorderEngine *recorder = (gRecorderEngine *)(h->pData);
   CHECK_PARAM (videoEffect, RE_VIDEO_EFFECT_LIST_END);
 
-  if (!IS_IMX6Q()) {
+  if (!imx_soc_is_chip ("MX6Q")) {
       g_print("***Video effect is not supported!\n");
       return RE_RESULT_FEATURE_UNSUPPORTED;
   }
@@ -2112,7 +2112,7 @@ static REresult add_video_detect(RecorderEngineHandle handle, REuint32 videoDete
   gRecorderEngine *recorder = (gRecorderEngine *)(h->pData);
   CHECK_PARAM (videoDetect, RE_VIDEO_DETECT_LIST_END);
 
-  if (IS_IMX8MM() || IS_IMX8MP()) {
+  if (imx_soc_in_group ("imx8") || imx_soc_in_group ("imx9")) {
       g_print("***Video detect is not supported!\n");
       return RE_RESULT_FEATURE_UNSUPPORTED;
   }
@@ -2254,7 +2254,7 @@ static REresult set_ext_ctrls (RecorderEngineHandle handle, const REchar *ext_ct
   gRecorderEngine *recorder = (gRecorderEngine *)(h->pData);
   GstStructure * ctrls;
 
-  if (!IS_IMX8MP()) {
+  if (!imx_soc_is_chip ("MX8MP")) {
     g_printf ("only platform with isp support camera extra control\n");
     return RE_RESULT_SUCCESS;
   }

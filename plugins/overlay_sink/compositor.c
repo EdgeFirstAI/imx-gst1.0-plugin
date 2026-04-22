@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013-2016, Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright 2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -22,7 +23,7 @@
 #include "compositor.h"
 #include "imx_2d_device.h"
 #include "imxoverlaycompositionmeta.h"
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
 
 GST_DEBUG_CATEGORY_EXTERN (overlay_sink_debug);
 #define GST_CAT_DEFAULT overlay_sink_debug

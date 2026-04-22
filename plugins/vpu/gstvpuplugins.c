@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2013, Freescale Semiconductor, Inc. All rights reserved.
- * Copyright 2018 NXP
+ * Copyright 2018,2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -25,20 +25,21 @@
 #include <string.h>
 #include <gst/gst.h>
 
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
+#include "gstimxplugins.h"
 #include "gstvpuenc.h"
 #include "gstvpudec.h"
 
 static gboolean
 plugin_init (GstPlugin * plugin)
 {
-  if (HAS_VPU()) {
+  if (imx_soc_has_feature ("vpu")) {
     guint rank = IMX_GST_PLUGIN_RANK;
-    if (!IS_HANTRO() || IS_IMX8MM() || IS_IMX8MP())
+    if (imx_soc_is_chip ("MX6Q") || imx_soc_is_chip ("MX8MM") || imx_soc_is_chip ("MX8MP"))
       if (!gst_vpu_enc_register (plugin))
         return FALSE;
 
-    if (imx_chip_code() >= CC_MX8)
+    if (imx_soc_in_group ("hantro"))
       rank = GST_RANK_SECONDARY;
     if (!gst_element_register (plugin, "vpudec", rank, GST_TYPE_VPU_DEC))
       return FALSE;

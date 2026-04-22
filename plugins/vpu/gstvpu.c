@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013-2015, Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright 2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -19,7 +20,8 @@
 
 #include "gstvpuenc.h"
 #include <gst/allocators/gstphysmemory.h>
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
+#include "gstimxplugins.h"
 
 VPUMapper vpu_mappers[] = {
   {VPU_V_HEVC, "video/x-h265"},
@@ -141,7 +143,7 @@ gst_vpu_register_frame_buffer (GList * gstbuffer_in_vpudec, \
         i, (guintptr)buffer);
     vpu_frame = &(vpuframebuffers[i]);
 
-    if (IS_HANTRO()) {
+    if (imx_soc_in_group ("hantro")) {
       if (!gst_video_frame_map (&frame, info, buffer, GST_MAP_WRITE | GST_MAP_READ)) {
         GST_ERROR ("Could not map video buffer");
         return FALSE;

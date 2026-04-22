@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2013, Freescale Semiconductor, Inc. All rights reserved.
- * Copyright 2017-2018 NXP
+ * Copyright 2017-2018,2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -26,7 +26,7 @@
 #include <gst/video/gstvideohdr10meta.h>
 #endif
 
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
 #include <gst/video/gstphymemmeta.h>
 #include <gst/allocators/gstdmabufmeta.h>
 #include <gst/allocators/gstphysmemory.h>
@@ -135,19 +135,19 @@ gst_vpu_dec_object_get_sink_caps (void)
           || ((vpu_fwcode & VPU_FIRMWARE_CODE_RV_FLAG) && map->std == VPU_V_RV)
           || ((vpu_fwcode & VPU_FIRMWARE_CODE_DIVX_FLAG) 
             && (map->std == VPU_V_DIVX3 || map->std == VPU_V_DIVX4
-              || map->std == VPU_V_DIVX56)) || (IS_HANTRO()
+              || map->std == VPU_V_DIVX56)) || (imx_soc_in_group ("hantro")
               && (map->std == VPU_V_VP9 || map->std == VPU_V_HEVC
                 || map->std == VPU_V_RV
                 || map->std == VPU_V_AVS || map->std == VPU_V_VP6
                 || map->std == VPU_V_SORENSON || map->std == VPU_V_WEBP))
-          || (IS_AMPHION() && (map->std == VPU_V_HEVC))) {
-        if (IS_AMPHION() && (map->std == VPU_V_VP8 || map->std == VPU_V_H263
+          || (imx_soc_in_group ("amphion") && (map->std == VPU_V_HEVC))) {
+        if (imx_soc_in_group ("amphion") && (map->std == VPU_V_VP8 || map->std == VPU_V_H263
               || map->std == VPU_V_XVID || map->std == VPU_V_VC1
               || map->std == VPU_V_MJPG || map->std == VPU_V_VC1_AP)) {
           map++;
           continue;
         }
-        if ((IS_IMX8MM() || IS_IMX8MP()) && (map->std != VPU_V_HEVC && map->std != VPU_V_VP9
+        if ((imx_soc_is_chip ("MX8MM") || imx_soc_is_chip ("MX8MP")) && (map->std != VPU_V_HEVC && map->std != VPU_V_VP9
                     && map->std != VPU_V_AVC && map->std != VPU_V_VP8)) {
             map++;
             continue;
@@ -395,7 +395,7 @@ gst_vpu_dec_object_allocate_mv_buffer (GstVpuDecObject * vpu_dec_object)
   memset (vpu_dec_object->vpuframebuffers, 0, sizeof (VpuFrameBuffer) \
       * vpu_dec_object->actual_buf_cnt);
 
-  if (!IS_HANTRO()) {
+  if (!imx_soc_in_group ("hantro")) {
     for (i=0; i<vpu_dec_object->actual_buf_cnt; i++) {
       vpu_frame = &vpu_dec_object->vpuframebuffers[i];
       size = vpu_dec_object->width_paded * vpu_dec_object->height_paded / 4;
@@ -526,12 +526,12 @@ gst_vpu_dec_object_set_vpu_param (GstVpuDecObject * vpu_dec_object, \
   open_param->nMapType = 0;
   vpu_dec_object->implement_config = FALSE;
   vpu_dec_object->force_linear = FALSE;
-  if ((IS_HANTRO() && (open_param->CodecFormat == VPU_V_HEVC
+  if ((imx_soc_in_group ("hantro") && (open_param->CodecFormat == VPU_V_HEVC
         || open_param->CodecFormat == VPU_V_VP9
         || open_param->CodecFormat == VPU_V_AVC))
-      || IS_AMPHION()) {
+      || imx_soc_in_group ("amphion")) {
     open_param->nTiled2LinearEnable = 1;
-    if (IS_IMX8MM() || IS_IMX8MP())
+    if (imx_soc_is_chip ("MX8MM") || imx_soc_is_chip ("MX8MP"))
         open_param->nTiled2LinearEnable = 0;
     vpu_dec_object->implement_config = TRUE;
     if (open_param->CodecFormat == VPU_V_HEVC
@@ -543,7 +543,7 @@ gst_vpu_dec_object_set_vpu_param (GstVpuDecObject * vpu_dec_object, \
     open_param->nTiled2LinearEnable = 0;
   }
   open_param->nEnableVideoCompressor = 1;
-  if (IS_IMX8MM() || IS_IMX8MP()) {
+  if (imx_soc_is_chip ("MX8MM") || imx_soc_is_chip ("MX8MP")) {
     open_param->nEnableVideoCompressor = 0;
     open_param->nPixelFormat = 1;
   }
@@ -553,7 +553,7 @@ gst_vpu_dec_object_set_vpu_param (GstVpuDecObject * vpu_dec_object, \
   } else {
     vpu_dec_object->is_mjpeg = FALSE;
   }
-  if (IS_HANTRO() && (open_param->CodecFormat == VPU_V_HEVC
+  if (imx_soc_in_group ("hantro") && (open_param->CodecFormat == VPU_V_HEVC
         || open_param->CodecFormat == VPU_V_VP9)) {
     vpu_dec_object->is_g2 = TRUE;
   } else {
@@ -720,7 +720,7 @@ gst_vpu_dec_object_register_frame_buffer (GstVpuDecObject * vpu_dec_object, \
        &vpu_dec_object->vpuframebuffers[i], vpu_dec_object->vpuframebuffers[i].pbufVirtY, buffer);
   }
 
-  if (!IS_AMPHION()) {
+  if (!imx_soc_in_group ("amphion")) {
     dec_ret = VPU_DecRegisterFrameBuffer (vpu_dec_object->handle, \
         vpu_dec_object->vpuframebuffers, vpu_dec_object->actual_buf_cnt);
     if (dec_ret != VPU_DEC_RET_SUCCESS) {
@@ -780,7 +780,7 @@ gst_vpu_dec_object_handle_reconfig(GstVpuDecObject * vpu_dec_object, \
   if (fmt ==  GST_VIDEO_FORMAT_NV12 && vpu_dec_object->init_info.nBitDepth == 10){
     fmt = GST_VIDEO_FORMAT_NV12_10LE40;
   }
-  if (IS_HANTRO() && vpu_dec_object->init_info.nInterlace
+  if (imx_soc_in_group ("hantro") && vpu_dec_object->init_info.nInterlace
       && vpu_dec_object->implement_config) {
     vpu_dec_object->force_linear = TRUE;
   }
@@ -804,22 +804,22 @@ gst_vpu_dec_object_handle_reconfig(GstVpuDecObject * vpu_dec_object, \
   vpu_dec_object->buf_align = vpu_dec_object->init_info.nAddressAlignment;
   memset(&(vpu_dec_object->video_align), 0, sizeof(GstVideoAlignment));
 
-  if (IS_AMPHION())
+  if (imx_soc_in_group ("amphion"))
     width_align = DEFAULT_FRAME_BUFFER_ALIGNMENT_H_AMPHION;
-  else if (IS_HANTRO() && vpu_dec_object->implement_config)
+  else if (imx_soc_in_group ("hantro") && vpu_dec_object->implement_config)
     width_align = DEFAULT_FRAME_BUFFER_ALIGNMENT_H_HANTRO_TILE;
   else
     width_align = DEFAULT_FRAME_BUFFER_ALIGNMENT_H;
   if (vpu_dec_object->init_info.nPicWidth % width_align)
     vpu_dec_object->video_align.padding_right = width_align \
       - vpu_dec_object->init_info.nPicWidth % width_align;
-  if (IS_HANTRO() && vpu_dec_object->is_g2 == TRUE)
+  if (imx_soc_in_group ("hantro") && vpu_dec_object->is_g2 == TRUE)
     height_align = DEFAULT_FRAME_BUFFER_ALIGNMENT_V_HANTRO;
-  else if (IS_AMPHION())
+  else if (imx_soc_in_group ("amphion"))
     height_align = DEFAULT_FRAME_BUFFER_ALIGNMENT_V_AMPHION;
   else
     height_align = DEFAULT_FRAME_BUFFER_ALIGNMENT_V;
-  if (!IS_HANTRO() && vpu_dec_object->init_info.nInterlace)
+  if (!imx_soc_in_group ("hantro") && vpu_dec_object->init_info.nInterlace)
     height_align <<= 1;
   if (vpu_dec_object->init_info.nPicHeight % height_align)
     vpu_dec_object->video_align.padding_bottom = height_align \
@@ -895,7 +895,7 @@ gst_vpu_dec_object_handle_reconfig(GstVpuDecObject * vpu_dec_object, \
     return GST_FLOW_ERROR;
   }
 
-  if (IS_HANTRO() && vpu_dec_object->implement_config) {
+  if (imx_soc_in_group ("hantro") && vpu_dec_object->implement_config) {
     VpuBufferNode in_data = {0};
     int buf_ret;
     dec_ret = VPU_DecDecodeBuf(vpu_dec_object->handle, &in_data, &buf_ret);
@@ -1146,7 +1146,7 @@ gst_vpu_dec_object_send_output (GstVpuDecObject * vpu_dec_object, \
     gst_object_unref (pool);
   }
 
-  if (IS_HANTRO() || vpu_dec_object->use_my_pool) {
+  if (imx_soc_in_group ("hantro") || vpu_dec_object->use_my_pool) {
     pmeta = GST_PHY_MEM_META_ADD (out_frame->output_buffer);
     pmeta->x_padding = vpu_dec_object->video_align.padding_right;
     pmeta->y_padding = vpu_dec_object->video_align.padding_bottom;
@@ -1315,7 +1315,7 @@ gst_vpu_dec_object_set_vpu_input_buf (GstVpuDecObject * vpu_dec_object, \
   /* Hantro video decoder can output video frame even if only input one frame.
    * Needn't send EOS to drain it.
    */
-  if (IS_HANTRO() && vpu_dec_object->tsm_mode == MODE_FIFO && frame == NULL) {
+  if (imx_soc_in_group ("hantro") && vpu_dec_object->tsm_mode == MODE_FIFO && frame == NULL) {
     vpu_buffer_node->nSize = 0;
     vpu_buffer_node->pVirAddr = (unsigned char *) NULL;
 
@@ -1389,7 +1389,7 @@ gst_vpu_dec_object_decode (GstVpuDecObject * vpu_dec_object, \
   if (frame)
     gst_video_codec_frame_unref (frame);
 
-  if (!IS_AMPHION() && in_data.nSize == 0 && (frame || vpu_dec_object->state == STATE_OPENED)) {
+  if (!imx_soc_in_group ("amphion") && in_data.nSize == 0 && (frame || vpu_dec_object->state == STATE_OPENED)) {
     return GST_FLOW_OK;
   }
 
@@ -1433,7 +1433,7 @@ gst_vpu_dec_object_decode (GstVpuDecObject * vpu_dec_object, \
       vpu_dec_object->vpu_need_reconfig = TRUE;
       ret = gst_vpu_dec_object_handle_reconfig(vpu_dec_object, bdec);
       /* workaround for VPU will discard decoded video frame when resolution change. */
-      if (!IS_HANTRO() && !IS_AMPHION())
+      if (!imx_soc_in_group ("hantro") && !imx_soc_in_group ("amphion"))
         gst_vpu_dec_object_clear_decoded_frame_ts (vpu_dec_object);
       vpu_dec_object->vpu_report_resolution_change = FALSE; 
       vpu_dec_object->vpu_need_reconfig = FALSE;
@@ -1515,7 +1515,7 @@ gst_vpu_dec_object_decode (GstVpuDecObject * vpu_dec_object, \
     }
     if (buf_ret & VPU_DEC_NO_ENOUGH_INBUF) {
       GST_LOG_OBJECT (vpu_dec_object, "Got not enough input message!!");
-      if (!IS_AMPHION() && vpu_dec_object->state < STATE_REGISTRIED_FRAME_BUFFER) {
+      if (!imx_soc_in_group ("amphion") && vpu_dec_object->state < STATE_REGISTRIED_FRAME_BUFFER) {
         GST_WARNING_OBJECT (vpu_dec_object, "Dropped video frame before VPU init ok!");
         ret = gst_vpu_dec_object_send_output (vpu_dec_object, bdec, TRUE);
         if (ret != GST_FLOW_OK) {
@@ -1571,7 +1571,7 @@ gst_vpu_dec_object_flush (GstVideoDecoder * bdec, GstVpuDecObject * vpu_dec_obje
 
   // FIXME: workaround for VP8 seek. VPU will block if VPU need framebuffer
   // before seek.
-  if (!IS_HANTRO() && !IS_AMPHION() && vpu_dec_object->state >= STATE_REGISTRIED_FRAME_BUFFER) {
+  if (!imx_soc_in_group ("hantro") && !imx_soc_in_group ("amphion") && vpu_dec_object->state >= STATE_REGISTRIED_FRAME_BUFFER) {
     gst_vpu_dec_object_get_gst_buffer(bdec, vpu_dec_object);
   }
 

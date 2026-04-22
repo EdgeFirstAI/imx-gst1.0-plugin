@@ -16,7 +16,7 @@
 
 /*
  * Copyright (C) 2010-2011, 2014 Freescale Semiconductor, Inc. All rights reserved.
- * Copyright 2018 NXP
+ * Copyright 2018,2026 NXP
  *
  */
 
@@ -39,8 +39,9 @@
 #endif
 
 #include "aiurdemux.h"
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
 #include "aiurtypefind.h"
+#include "gstimxplugins.h"
 
 static gboolean
 plugin_init (GstPlugin * plugin)

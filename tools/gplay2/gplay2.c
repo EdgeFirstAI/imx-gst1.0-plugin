@@ -1,6 +1,6 @@
 /*
  * Copyright 2014-2016 Freescale Semiconductor, Inc.
- * Copyright 2017-2020 NXP
+ * Copyright 2017-2020,2026 NXP
  *
  */
 
@@ -36,7 +36,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <poll.h>
-#include <gstimxcommon.h>
+#include "gstimxsocfeatures.h"
 
 #include <gst/play/play.h>
 
@@ -825,42 +825,6 @@ signal_handler (int sig)
   }
 }
 
-gboolean
-gplay_checkfeature (CHIP_FEATURE type)
-{
-  gboolean ret = FALSE;
-
-  switch (type) {
-    case G2D:
-      ret = HAS_G2D ();
-      break;
-    case G3D:
-      ret = HAS_G3D ();
-      break;
-    case PXP:
-      ret = HAS_PXP ();
-      break;
-    case IPU:
-      ret = HAS_IPU ();
-      break;
-    case VPU:
-      ret = HAS_VPU ();
-      break;
-    case DPU:
-      ret = HAS_DPU ();
-      break;
-    case DCSS:
-      ret = HAS_DCSS();
-      break;
-    default:
-      ret = FALSE;
-      break;
-  }
-
-  return ret;
-}
-
-
 static gboolean
 gplay_get_fullscreen_size (gint32 * pfullscreen_width,
     gint32 * pfullscreen_height)
@@ -888,8 +852,8 @@ gplay_get_fullscreen_size (gint32 * pfullscreen_width,
 
 static void gplay_set_subtitle_track_enabled (GstPlay * play, gboolean enabled) 
 {
-  if (gplay_checkfeature (VPU)
-      && (gplay_checkfeature (DCSS) || gplay_checkfeature (DPU))) {
+  if (imx_soc_has_feature ("vpu")
+      && (imx_soc_has_feature ("dcss") || imx_soc_in_group ("amphion"))) {
     gst_play_set_subtitle_track_enabled (play, FALSE);
   } else {
     gst_play_set_subtitle_track_enabled (play, enabled);
@@ -1694,7 +1658,7 @@ main (int argc, char *argv[])
   }
 
   if (!options.video_sink_name) {
-    if (IS_AMPHION () && gplay_checkfeature (DPU)) {
+    if (imx_soc_in_group ("amphion")) {
       options.video_sink_name = "imxvideoconvert_g2d ! queue ! waylandsink";
       g_print ("Set VideoSink %s \n", options.video_sink_name);
       video_sink =
@@ -1733,8 +1697,8 @@ main (int argc, char *argv[])
     text_sink =
         gst_parse_bin_from_description (options.text_sink_name, TRUE, NULL);
     gst_play_set_text_sink (play, text_sink);
-  } else if ((IS_AMPHION () && gplay_checkfeature (DPU))
-      || (gplay_checkfeature (VPU) && gplay_checkfeature (DCSS))) {
+  } else if (imx_soc_in_group ("amphion")
+      || (imx_soc_has_feature ("vpu") && imx_soc_has_feature ("dcss"))) {
     g_print ("Disable subtitle rendering\n");
     gst_play_set_subtitle_track_enabled (play, FALSE);
     /* clear subtitle uri */

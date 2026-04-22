@@ -1,5 +1,6 @@
 /* GStreamer IMX video convert plugin
  * Copyright (c) 2014, Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright 2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -21,7 +22,7 @@
 #define __GST_IMX_VIDEO_CONVERT_H__
 
 #include <gst/gst.h>
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
 #include "imx_2d_device.h"
 #include "imxoverlaycompositionmeta.h"
 

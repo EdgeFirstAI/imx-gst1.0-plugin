@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2014-2016, Freescale Semiconductor, Inc. All rights reserved.
- * Copyright 2018 NXP
+ * Copyright 2018,2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -1226,7 +1226,7 @@ plugin_init (GstPlugin * plugin)
 {
   GST_DEBUG_CATEGORY_INIT (overlay_sink_debug, "overlaysink", 0, "Freescale IMX video overlay(compositor) sink element");
 
-  if (HAS_G2D()) {
+  if (imx_soc_in_group ("g2d")) {
     if (!gst_element_register (plugin, "overlaysink", IMX_GST_PLUGIN_RANK + 1,
           GST_TYPE_OVERLAY_SINK))
       return FALSE;

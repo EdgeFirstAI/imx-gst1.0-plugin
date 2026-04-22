@@ -1,5 +1,6 @@
 /* GStreamer IMX video compositor plugin
  * Copyright (c) 2015, Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright 2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -25,7 +26,7 @@
 #include <gst/gst.h>
 #include <gst/video/video.h>
 #include <gst/video/gstvideoaggregator.h>
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
 #include "imx_2d_device.h"
 #include "imxoverlaycompositionmeta.h"
 

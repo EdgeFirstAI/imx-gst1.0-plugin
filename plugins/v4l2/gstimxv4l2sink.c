@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2013-2015, Freescale Semiconductor, Inc. All rights reserved.
- * Copyright 2018 NXP
+ * Copyright 2018,2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -713,7 +713,7 @@ gst_imx_v4l2sink_show_frame (GstBaseSink * bsink, GstBuffer * buffer)
     GST_DEBUG_OBJECT (v4l2sink, "not v4l2 allocated buffer.");
 
     v4l2sink->use_userptr_mode = FALSE;
-    if (gst_buffer_is_phymem (buffer) && HAS_IPU()) {
+    if (gst_buffer_is_phymem (buffer) && imx_soc_has_feature ("ipu")) {
       v4l2sink->use_userptr_mode = TRUE;
       if (!v4l2sink->pool) {
         if (gst_imx_v4l2sink_setup_buffer_pool (v4l2sink, caps) < 0) {
@@ -1190,12 +1190,12 @@ gst_imx_v4l2sink_init (GstImxV4l2Sink * v4l2sink)
 
   v4l2sink->composition_meta_enable = IMX_V4L2SINK_COMPOMETA_DEFAULT;
   v4l2sink->blend_dev = NULL;
-  if (HAS_IPU())
+  if (imx_soc_has_feature ("ipu"))
     v4l2sink->blend_dev = imx_2d_device_create(IMX_2D_DEVICE_IPU);
-  else if (HAS_PXP())
+  else if (imx_soc_has_feature ("pxp-legacy"))
     v4l2sink->blend_dev = imx_2d_device_create(IMX_2D_DEVICE_PXP);
 /*
-  else if (HAS_G2D())  G2D don't support YUV color space
+  else if (imx_soc_in_group ("g2d"))  G2D don't support YUV color space
     v4l2sink->blend_dev = imx_2d_device_create(IMX_2D_DEVICE_G2D);
 */
 

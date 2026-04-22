@@ -1,5 +1,6 @@
 /* Process video overlay composition meta by IMX 2D devices
  * Copyright (c) 2015-2016, Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright 2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -21,7 +22,7 @@
 #define __IMXOVERLAYCOMPOSITIONMETA_H__
 
 #include <gst/gst.h>
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
 #include "../device-2d/imx_2d_device.h"
 
 #define IMX_OVERLAY_COMPOSITION_INIT_BUFFER_SIZE       ((1920*1088*4)/4)

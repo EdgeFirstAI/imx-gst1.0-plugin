@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014-2015, Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright 2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -22,7 +23,7 @@
 
 #include <gst/video/gstvideosink.h>
 #include <gst/video/gstvideometa.h>
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
 #include "osink_common.h"
 
 #define GST_TYPE_OVERLAY_SINK \

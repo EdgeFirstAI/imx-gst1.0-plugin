@@ -1,5 +1,6 @@
 /* GStreamer IMX IPU Device
  * Copyright (c) 2014-2015, Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright 2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -1083,5 +1084,5 @@ gint imx_ipu_destroy(Imx2DDevice *device)
 
 gboolean imx_ipu_is_exist (void)
 {
-  return HAS_IPU();
+  return imx_soc_has_feature ("ipu");
 }

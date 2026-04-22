@@ -1,6 +1,6 @@
 /* GStreamer IMX Video 2D Device Abstract
  * Copyright (c) 2014-2016, Freescale Semiconductor, Inc. All rights reserved.
- * Copyright 2018 NXP
+ * Copyright 2018, 2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -22,7 +22,7 @@
 #define __IMX_VIDEO_2D_DEVICE_H__
 
 #include <gst/video/video.h>
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
 #include "gstimx.h"
 #include "imx_2d_device_allocator.h"
 

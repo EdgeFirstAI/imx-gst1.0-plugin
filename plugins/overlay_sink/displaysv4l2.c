@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013-2014, Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright 2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -28,7 +29,7 @@
 #include <linux/fb.h>
 #include <linux/mxcfb.h>
 
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
 #include "displays.h"
 #include "gstsutils.h"
 #include "gstimxv4l2.h"
@@ -100,9 +101,9 @@ gint scan_displays(gpointer **phandle, gint *pcount)
   gint i;
   gint count = 0;
 
-  if (HAS_IPU())
+  if (imx_soc_has_feature ("ipu"))
     entry = gstsutils_init_entry ("/usr/share/imx_6q_display_config");
-  else if (HAS_PXP())
+  else if (imx_soc_has_feature ("pxp-legacy"))
     entry = gstsutils_init_entry ("/usr/share/imx_6sx_display_config");
   else {
     GST_ERROR ("Not supported platform.");

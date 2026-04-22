@@ -1,5 +1,5 @@
 /* GStreamer
- * Copyright 2020-2021 NXP
+ * Copyright 2020-2021,2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -50,7 +50,8 @@
 #define SPDIF_PARSER_LIB_PATH  "/usr/lib/imx-mm/parser/libspdifparser.so"
 #include "spdifparser.h"
 #include "gstspdifdemux.h"
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
+#include "gstimxplugins.h"
 
 GST_DEBUG_CATEGORY_STATIC (spdifdemux_debug);
 #define GST_CAT_DEFAULT (spdifdemux_debug)

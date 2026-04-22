@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013-2014, Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright 2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -20,6 +21,8 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+
+#include "gstimxplugins.h"
 
 #include "gstimxv4l2sink.h"
 #include "gstimxv4l2src.h"

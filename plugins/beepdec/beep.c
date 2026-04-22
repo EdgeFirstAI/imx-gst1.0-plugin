@@ -16,7 +16,7 @@
 
 /*
  * Copyright (c) 2011-2014, Freescale Semiconductor, Inc. All rights reserved. 
- * Copyright 2018 NXP
+ * Copyright 2018,2026 NXP
  *
  */
 
@@ -36,8 +36,9 @@
 #include <config.h>
 #endif
 #include "beepdec.h"
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
 #include "beeptypefind.h"
+#include "gstimxplugins.h"
 
 static gboolean
 plugin_init (GstPlugin * plugin)

@@ -1,6 +1,6 @@
 /* GStreamer IMX Video 2D device
  * Copyright (c) 2014-2015, Freescale Semiconductor, Inc. All rights reserved.
- * Copyright 2023-2025 NXP
+ * Copyright 2023-2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -19,6 +19,7 @@
  */
 
 #include "imx_2d_device.h"
+#include <stdio.h>
 
 GST_DEBUG_CATEGORY (imx2ddevice_debug);
 #define GST_CAT_DEFAULT imx2ddevice_debug

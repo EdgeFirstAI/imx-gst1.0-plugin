@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2014, Freescale Semiconductor, Inc. All rights reserved.
- * Copyright 2018 NXP
+ * Copyright 2018,2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -36,12 +36,14 @@
 #include "config.h"
 #endif
 #include <string.h>
+#include <stdio.h>
 
 #include <gst/video/video.h>
 #include <gst/video/gstvideometa.h>
 #include <gst/video/gstvideopool.h>
 #include <gst/allocators/gstdmabuf.h>
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
+#include "gstimxplugins.h"
 #include "gstvpuallocator.h"
 #include "gstvpuenc.h"
 #include "gstimx.h"
@@ -332,7 +334,7 @@ gst_vpu_enc_class_init (GstVpuEncClass * klass)
         -1, 51, DEFAULT_QUANT, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
   }
 
-  if ((in_plugin->std == VPU_V_AVC || in_plugin->std == VPU_V_HEVC) && IS_IMX8MP()) {
+  if ((in_plugin->std == VPU_V_AVC || in_plugin->std == VPU_V_HEVC) && imx_soc_is_chip ("MX8MP")) {
     g_object_class_install_property (gobject_class, PROP_STREAM_SLICE_COUNT,
       g_param_spec_int ("stream-multislice", "stream multislice",
         "the number of slices a picture contains",
@@ -370,7 +372,7 @@ gst_vpu_enc_class_init (GstVpuEncClass * klass)
     }
   }
 
-  if ((in_plugin->std == VPU_V_AVC) && IS_IMX8MM()) {
+  if ((in_plugin->std == VPU_V_AVC) && imx_soc_is_chip ("MX8MM")) {
     g_object_class_install_property (gobject_class, PROP_QPMIN,
       g_param_spec_int ("qp-min", "qp min",
         "minimum QP for any picture",
@@ -379,7 +381,7 @@ gst_vpu_enc_class_init (GstVpuEncClass * klass)
       g_param_spec_int ("qp-max", "qp max",
         "maximum QP for any picture, default 0 makes wrapper to set 51",
         0, 51,  DEFAULT_QPMAX, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-  } else if ((in_plugin->std == VPU_V_VP8) && IS_IMX8MM()) {
+  } else if ((in_plugin->std == VPU_V_VP8) && imx_soc_is_chip ("MX8MM")) {
     g_object_class_install_property (gobject_class, PROP_QPMIN,
       g_param_spec_int ("qp-min", "qp min",
         "minimum QP for any picture",
@@ -391,10 +393,10 @@ gst_vpu_enc_class_init (GstVpuEncClass * klass)
   }
 
  if (in_plugin->std == VPU_V_AVC) {
-    if (IS_IMX8MM()) {
+    if (imx_soc_is_chip ("MX8MM")) {
       gst_element_class_add_pad_template (element_class,
           gst_static_pad_template_get (&static_sink_template_H1));
-    } else if (IS_IMX8MP()) {
+    } else if (imx_soc_is_chip ("MX8MP")) {
       gst_element_class_add_pad_template (element_class,
           gst_static_pad_template_get (&static_sink_template_VC8000E));
     } else {
@@ -814,7 +816,7 @@ gst_vpu_enc_decide_output_video_format (GstVideoEncoder * benc)
     enc->open_param.nIsAvcc = 1;
 
   // hantro vpu wrapper only output bytestream
-  if (IS_HANTRO())
+  if (imx_soc_in_group ("hantro"))
       enc->open_param.nIsAvcc = 0;
 
   gst_caps_unref(caps);
@@ -1030,8 +1032,8 @@ gst_vpu_enc_setup_internal_bufferpool (GstVpuEnc * enc)
   params.align = enc->init_info.nAddressAlignment;
   memset(&(enc->video_align), 0, sizeof(GstVideoAlignment));
 
-  if (IS_HANTRO()) {
-    if (IS_IMX8MP() && GST_VIDEO_INFO_FORMAT(&enc->state->info) == GST_VIDEO_FORMAT_I420)
+  if (imx_soc_in_group ("hantro")) {
+    if (imx_soc_is_chip ("MX8MP") && GST_VIDEO_INFO_FORMAT(&enc->state->info) == GST_VIDEO_FORMAT_I420)
       alignH = DEFAULT_FRAME_BUFFER_ALIGNMENT_H_I420_IMX8MP;
     else
       alignH = DEFAULT_FRAME_BUFFER_ALIGNMENT_H;
@@ -1047,7 +1049,7 @@ gst_vpu_enc_setup_internal_bufferpool (GstVpuEnc * enc)
 
   /* For hantro, with padding_right set, there is no need to set extra padded_width with
   stride_align in gst_video_info_align() function, otherwise will cause stride incorrect */
-  if (!IS_HANTRO()) {
+  if (!imx_soc_in_group ("hantro")) {
     for (i = 0; i < GST_VIDEO_MAX_PLANES; i++)
       enc->video_align.stride_align[i] = alignH - 1;
   }
@@ -1443,8 +1445,8 @@ gst_vpu_enc_propose_allocation (GstVideoEncoder * benc, GstQuery * query)
     gst_buffer_pool_config_set_params (structure, caps, size, 0, 0);
     gst_buffer_pool_config_set_allocator (structure, allocator, &params);
 
-    if (IS_HANTRO()) {
-      if (IS_IMX8MP() && GST_VIDEO_INFO_FORMAT(&info) == GST_VIDEO_FORMAT_I420)
+    if (imx_soc_in_group ("hantro")) {
+      if (imx_soc_is_chip ("MX8MP") && GST_VIDEO_INFO_FORMAT(&info) == GST_VIDEO_FORMAT_I420)
         stride_align = DEFAULT_FRAME_BUFFER_ALIGNMENT_H_I420_IMX8MP;
       else
         stride_align = DEFAULT_FRAME_BUFFER_ALIGNMENT_H;
@@ -1501,13 +1503,13 @@ gboolean gst_vpu_enc_register (GstPlugin * plugin)
 
   while (in_plugin->name) {
 #ifdef USE_H1_ENC
-    if (g_strcmp0 (in_plugin->name, "h264") && g_strcmp0 (in_plugin->name, "vp8") && IS_IMX8MM()) {
+    if (g_strcmp0 (in_plugin->name, "h264") && g_strcmp0 (in_plugin->name, "vp8") && imx_soc_is_chip ("MX8MM")) {
       in_plugin++;
       continue;
     }
 #endif
 #ifdef USE_VC8000E_ENC
-    if (g_strcmp0 (in_plugin->name, "h264") && g_strcmp0 (in_plugin->name, "hevc") && IS_IMX8MP()) {
+    if (g_strcmp0 (in_plugin->name, "h264") && g_strcmp0 (in_plugin->name, "hevc") && imx_soc_is_chip ("MX8MP")) {
       in_plugin++;
       continue;
     }

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014-2016, Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright 2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -22,6 +23,7 @@
 
 #include <gst/gst.h>
 #include <gst/allocators/gstallocatorphymem.h>
+#include "gstimxplugins.h"
 
 #define MAX_DISPLAY (4)
 

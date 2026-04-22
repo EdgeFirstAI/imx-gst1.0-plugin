@@ -1,5 +1,5 @@
 /* GStreamer
- * Copyright 2024-2025 NXP
+ * Copyright 2024-2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -33,11 +33,14 @@
 #include "config.h"
 #endif
 
+#include <stdio.h>
+
 #include <gst/gst.h>
 #include <gst/gstutils.h>
 #include <gst/audio/audio.h>
 #include <gst/base/gstbasetransform.h>
 #include "gstimxasrc.h"
+#include "gstimxplugins.h"
 
 GST_DEBUG_CATEGORY_STATIC (gst_imxasrc_debug_category);
 #define GST_CAT_DEFAULT gst_imxasrc_debug_category

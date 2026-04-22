@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013-2014, Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright 2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -23,6 +24,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <string.h>
+#include <stdio.h>
 
 #include <linux/fb.h>
 #include <linux/mxcfb.h>
@@ -31,7 +33,7 @@
 #include <linux/version.h>
 #include <gst/video/gstvideosink.h>
 
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
 #include "gstimxv4l2.h"
 
 #define RGB888TORGB565(rgb)\
@@ -221,10 +223,10 @@ static IMXV4l2FmtMap * imx_v4l2_get_fmt_map(guint *map_size)
   IMXV4l2FmtMap *fmt_map = NULL;
   *map_size = 0;
 
-  if (HAS_IPU()) {
+  if (imx_soc_has_feature ("ipu")) {
     fmt_map = g_imxv4l2fmt_maps_IPU;
     *map_size = sizeof(g_imxv4l2fmt_maps_IPU)/sizeof(IMXV4l2FmtMap);
-  } else if (HAS_PXP()){
+  } else if (imx_soc_has_feature ("pxp-legacy")){
     fmt_map = g_imxv4l2fmt_maps_PXP;
     *map_size = sizeof(g_imxv4l2fmt_maps_PXP)/sizeof(IMXV4l2FmtMap);
   }
@@ -606,9 +608,9 @@ gst_imx_v4l2_get_default_device_name (gint type)
   char * devname;
 
   if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-    if (HAS_IPU())
+    if (imx_soc_has_feature ("ipu"))
       devname = (char*)"/dev/video17";
-    else if (HAS_PXP())
+    else if (imx_soc_has_feature ("pxp-legacy"))
       devname = (char*)"/dev/video0";
     else {
       GST_ERROR ("UNKNOWN imx SoC.");
@@ -633,9 +635,9 @@ gst_imx_v4l2_get_min_buffer_num (gpointer *v4l2handle, gint type)
   IMXV4l2Handle *handle = (IMXV4l2Handle*)v4l2handle;
 
   if (handle && type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-    if (HAS_PXP())
+    if (imx_soc_has_feature ("pxp-legacy"))
       num = MAX (handle->v4l2_hold_buf_num, MX60_STREAMON_COUNT);
-    else if (HAS_IPU())
+    else if (imx_soc_has_feature ("ipu"))
       num = MAX (handle->v4l2_hold_buf_num, MX6Q_STREAMON_COUNT);
     else
       num = handle->v4l2_hold_buf_num;
@@ -849,9 +851,9 @@ gboolean
 gst_imx_v4l2_support_deinterlace (gint type)
 {
   if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-    if (HAS_IPU())
+    if (imx_soc_has_feature ("ipu"))
       return TRUE;
-    else if (HAS_PXP())
+    else if (imx_soc_has_feature ("pxp-legacy"))
       return FALSE;
     else {
       GST_ERROR ("UNKNOWN imx SoC.");
@@ -1143,7 +1145,7 @@ gpointer gst_imx_v4l2_open_device (gchar *device, int type)
   handle->v4l2_hold_buf_num = V4L2_HOLDED_BUFFERS;
 
   if (type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
-    if (HAS_IPU()) {
+    if (imx_soc_has_feature ("ipu")) {
       handle->dev_itf.v4l2out_config_input = (V4l2outConfigInput)imx_ipu_v4l2out_config_input;
       handle->dev_itf.v4l2out_config_output = (V4l2outConfigOutput)imx_ipu_v4l2out_config_output;
       handle->dev_itf.v4l2out_config_rotate = (V4l2outConfigRotate)imx_ipu_v4l2out_config_rotate;
@@ -1151,7 +1153,7 @@ gpointer gst_imx_v4l2_open_device (gchar *device, int type)
       handle->dev_itf.v4l2out_config_colorkey = (V4l2outConfigColorkey) imx_ipu_v4l2_config_colorkey;
       handle->streamon_count = MX6Q_STREAMON_COUNT;
     }
-    else if (HAS_PXP()) {
+    else if (imx_soc_has_feature ("pxp-legacy")) {
       handle->dev_itf.v4l2out_config_input = (V4l2outConfigInput)imx_pxp_v4l2out_config_input;
       handle->dev_itf.v4l2out_config_output = (V4l2outConfigOutput)imx_pxp_v4l2out_config_output;
       handle->dev_itf.v4l2out_config_rotate = (V4l2outConfigRotate)imx_pxp_v4l2out_config_rotate;
@@ -1235,7 +1237,7 @@ gint gst_imx_v4l2_close_device (gpointer v4l2handle)
   if (handle) {
     /*set global alpha to 255 when quit in case of overlay is already in use and
      * part is transparent to UI*/
-    if (HAS_IPU() && handle->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
+    if (imx_soc_has_feature ("ipu") && handle->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
       gst_imx_v4l2out_config_alpha (handle, 255);
     }
 

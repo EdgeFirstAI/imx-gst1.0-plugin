@@ -1,6 +1,6 @@
 /* GStreamer IMX video convert plugin
  * Copyright (c) 2014-2016, Freescale Semiconductor, Inc. All rights reserved.
- * Copyright 2017-2025 NXP
+ * Copyright 2017-2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -22,6 +22,8 @@
 #include <config.h>
 #endif
 
+#include <stdio.h>
+
 #include <gst/video/video.h>
 #include <gst/allocators/gstdmabuf.h>
 #include <gst/allocators/gstdmabufmeta.h>
@@ -35,6 +37,7 @@
 #endif
 #include <gst/video/gstphymemmeta.h>
 #include "gstimxvideoconvert.h"
+#include "gstimxplugins.h"
 
 #define IMX_VCT_IN_POOL_MAX_BUFFERS   30
 
@@ -423,7 +426,7 @@ static GstCaps* imx_video_convert_transform_caps(GstBaseTransform *transform,
     st = gst_structure_copy(st);
 
     /* NV12 8x8 to YUY2 works on DPU */
-    if (HAS_DPU()) {
+    if (imx_soc_in_group ("dpu")) {
       gst_structure_set(st, "width", GST_TYPE_INT_RANGE, 8, G_MAXINT32,
           "height", GST_TYPE_INT_RANGE, 8, G_MAXINT32, NULL);
     } else {
@@ -544,7 +547,7 @@ static gint get_format_conversion_loss(GstBaseTransform * base,
   loss = SCORE_FORMAT_CHANGE;
 
   /* Reduce the priority of NV12 output on 8q platform */
-  if (IS_IMX8Q() && device->device_type == IMX_2D_DEVICE_G2D) {
+  if (imx_soc_is_chip ("MX8Q") && device->device_type == IMX_2D_DEVICE_G2D) {
     if (out_name == GST_VIDEO_FORMAT_NV12)
       loss = G_MAXINT32 - 1;
     goto done;
@@ -626,7 +629,7 @@ static gboolean imx_video_convert_check_format_conversion (GstBaseTransform *tra
   gboolean is_support = TRUE;
 
   if ((device->device_type == IMX_2D_DEVICE_OCL)
-      || ((device->device_type == IMX_2D_DEVICE_G2D) && HAS_DPU())) {
+      || ((device->device_type == IMX_2D_DEVICE_G2D) && imx_soc_in_group ("dpu"))) {
     if (!device->check_conversion (device, in_caps, out_caps)) {
       GST_DEBUG_OBJECT (imxvct, "Current device can't support conversion");
       is_support = FALSE;
@@ -1740,7 +1743,7 @@ imx_video_convert_accept_caps (GstBaseTransform * transform,
    * is supported for OpenCL-based 2d device or
    * g2d device which has DPU */
   if ((device->device_type == IMX_2D_DEVICE_OCL)
-      || ((device->device_type == IMX_2D_DEVICE_G2D) && HAS_DPU())) {
+      || ((device->device_type == IMX_2D_DEVICE_G2D) && imx_soc_in_group ("dpu"))) {
     pad =
       (direction ==
       GST_PAD_SINK) ? GST_BASE_TRANSFORM_SRC_PAD (transform) :

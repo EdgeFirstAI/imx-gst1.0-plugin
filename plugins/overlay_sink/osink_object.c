@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013-2016, Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright 2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -452,7 +453,7 @@ int osink_object_enable_display (gpointer osink_handle, gint display_idx)
     if (fmt == GST_MAKE_FOURCC('R', 'G', 'B', 'P'))
       gst_fmt = GST_VIDEO_FORMAT_RGB16;
     else if (fmt == GST_MAKE_FOURCC('R', 'G', 'B', 'x')) {
-      if (HAS_PXP())
+      if (imx_soc_has_feature ("pxp-legacy"))
         gst_fmt = GST_VIDEO_FORMAT_BGRx;
       else
         gst_fmt = GST_VIDEO_FORMAT_RGBx;

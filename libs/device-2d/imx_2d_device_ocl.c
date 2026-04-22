@@ -1,5 +1,5 @@
 /* GStreamer IMX openCL Device
- * Copyright 2023-2025 NXP
+ * Copyright 2023-2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -99,7 +99,7 @@ static gint imx_ocl_open (Imx2DDevice *device)
   }
 
   /* Configure OCL memory type */
-  if (IS_IMX95() || IS_IMX952()) {
+  if (imx_soc_in_group ("imx9")) {
     ocl->mem_type = OCL_MEM_TYPE_DEVICE;
   } else {
     ocl->mem_type = OCL_MEM_TYPE_GPU;
@@ -592,7 +592,7 @@ static gint imx_ocl_get_capabilities (Imx2DDevice* device)
 {
   gint capabilities = IMX_2D_DEVICE_CAP_CSC;
 
-  if (IS_IMX95() || IS_IMX952()) {
+  if (imx_soc_in_group ("imx9")) {
     capabilities |= IMX_2D_DEVICE_CAP_WARP;
   }
 
@@ -621,7 +621,7 @@ static GList* imx_ocl_get_supported_fmts (OCL_PORT port)
     i++;
   }
 
-  if ((!IS_AMPHION()) && port == OCL_PORT_TYPE_INPUT) {
+  if ((!imx_soc_in_group ("amphion")) && port == OCL_PORT_TYPE_INPUT) {
     /* The two formats are supported only for amphion VPU */
     GstVideoFormat ignore_list[2] = {GST_VIDEO_FORMAT_NV12_8L128,
       GST_VIDEO_FORMAT_NV12_10BE_8L128};
@@ -809,7 +809,7 @@ static gboolean imx_ocl_config_warp_info (Imx2DDevice *device, Imx2DVideoWarp *v
   gsize file_size;
   OCL_MEM_BLOCK *ocl_mem;
 
-  if (!IS_IMX95() && !IS_IMX952()) {
+  if (!imx_soc_in_group ("imx9")) {
     GST_WARNING("Don't support warp/dewarp operations\n");
     return FALSE;
   }
@@ -920,7 +920,7 @@ gint imx_ocl_destroy (Imx2DDevice *device)
 
 gboolean imx_ocl_is_exist (void)
 {
-  if (IS_IMX8MM()) {
+  if (imx_soc_is_chip ("MX8MM")) {
     return FALSE;
   }
   return TRUE;

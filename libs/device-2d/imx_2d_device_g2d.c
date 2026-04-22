@@ -1,6 +1,6 @@
 /* GStreamer IMX G2D Device
  * Copyright (c) 2014-2016, Freescale Semiconductor, Inc. All rights reserved.
- * Copyright 2018-2020, 2022-2025 NXP
+ * Copyright 2018-2020, 2022-2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -91,7 +91,7 @@ static G2dFmtMap g2d_fmts_map_dpu[] = {
     {GST_VIDEO_FORMAT_ABGR,   G2D_ABGR8888, 32},
     {GST_VIDEO_FORMAT_xRGB,   G2D_XRGB8888, 32},
     {GST_VIDEO_FORMAT_xBGR,   G2D_XBGR8888, 32},
-    //HAS_DPU
+    //imx_soc_in_group ("dpu")
     {GST_VIDEO_FORMAT_UYVY,   G2D_UYVY,     16},
     {GST_VIDEO_FORMAT_YUY2,   G2D_YUYV,     16},
     {GST_VIDEO_FORMAT_NV12,   G2D_NV12,     12},
@@ -136,7 +136,7 @@ static G2dFmtMap g2d_fmts_warp_map[] = {
 static const G2dFmtMap * imx_g2d_get_format(GstVideoFormat format)
 {
   const G2dFmtMap *map;
-  if (HAS_DPU()) {
+  if (imx_soc_in_group ("dpu")) {
     map = g2d_fmts_map_dpu;
   } else {
     map = g2d_fmts_map;
@@ -687,7 +687,7 @@ static gint imx_g2d_get_capabilities (Imx2DDevice* device)
   gint capabilities = IMX_2D_DEVICE_CAP_SCALE|IMX_2D_DEVICE_CAP_CSC \
                       | IMX_2D_DEVICE_CAP_ROTATE | IMX_2D_DEVICE_CAP_ALPHA
                       | IMX_2D_DEVICE_CAP_BLEND;
-  if (IS_IMX95() || IS_IMX952()) {
+  if (imx_soc_has_feature ("g2d-dpuv2")) {
     capabilities |= IMX_2D_DEVICE_CAP_WARP;
   }
 
@@ -698,7 +698,7 @@ static GList* imx_g2d_get_supported_in_fmts(Imx2DDevice* device)
 {
   GList* list = NULL;
   const G2dFmtMap *map;
-  if (HAS_DPU()) {
+  if (imx_soc_in_group ("dpu")) {
     map = g2d_fmts_map_dpu;
   } else {
     map = g2d_fmts_map;
@@ -716,7 +716,7 @@ static GList* imx_g2d_get_supported_out_fmts(Imx2DDevice* device)
 {
   GList* list = NULL;
   const G2dFmtMap *map;
-  if (HAS_DPU()) {
+  if (imx_soc_in_group ("dpu")) {
     map = g2d_fmts_map_dpu;
   } else {
     map = g2d_fmts_map;
@@ -791,7 +791,7 @@ static gboolean imx_g2d_check_conversion (Imx2DDevice *device, GstCaps *input_ca
   const G2dFmtMap *out_map = NULL;
   gboolean ret = TRUE;
 
-  if (!HAS_DPU()) {
+  if (!imx_soc_in_group ("dpu")) {
     return TRUE;
   }
 
@@ -954,7 +954,7 @@ static GList* imx_g2d_get_supported_fmts_of_capability(Imx2DDevice* device, Imx2
 {
   GList* list = NULL;
   const G2dFmtMap *map;
-  if (HAS_DPU()) {
+  if (imx_soc_in_group ("dpu")) {
     map = g2d_fmts_map_dpu;
   } else {
     map = g2d_fmts_map;
@@ -963,7 +963,7 @@ static GList* imx_g2d_get_supported_fmts_of_capability(Imx2DDevice* device, Imx2
     if (map->gst_video_format != GST_VIDEO_FORMAT_UNKNOWN) {
       if (cap == IMX_2D_DEVICE_CAP_ALPHA
         && map->gst_video_format == GST_VIDEO_FORMAT_I420
-        && HAS_DPU()) {
+        && imx_soc_in_group ("dpu")) {
         map++;
         continue;
       }
@@ -988,7 +988,7 @@ static gboolean imx_g2d_get_alignment (Imx2DDevice* device, GstVideoInfo *in_inf
   /* Apply alignment only for RGB output on DPU
    * platform for some application requirements.
    */
-  if (align_info->is_output && HAS_DPU()) {
+  if (align_info->is_output && imx_soc_in_group ("dpu")) {
     out_map = imx_g2d_get_format(GST_VIDEO_INFO_FORMAT(out_info));
     if (out_map && out_map->g2d_format == G2D_RGB888) {
       align_info->is_apply = TRUE;
@@ -1052,5 +1052,5 @@ gint imx_g2d_destroy(Imx2DDevice *device)
 
 gboolean imx_g2d_is_exist (void)
 {
-  return HAS_G2D();
+  return imx_soc_in_group ("g2d");
 }

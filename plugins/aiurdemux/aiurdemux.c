@@ -16,7 +16,7 @@
 
 /*
  * Copyright (c) 2013-2015, Freescale Semiconductor, Inc.
- * Copyright 2017-2019 NXP
+ * Copyright 2017-2019,2026 NXP
  */
 
 
@@ -38,7 +38,7 @@
 #include <string.h>
 
 #include "aiurdemux.h"
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
 
 GST_DEBUG_CATEGORY (aiurdemux_debug);
 
@@ -1397,7 +1397,7 @@ aiurdemux_loop_state_init (GstAiurDemux * demux)
         flag |= FILE_FLAG_READ_IN_SEQUENCE;
     }
 
-    if (!strcmp (demux->core_interface->name, "realmedia") && IS_AMPHION()) {
+    if (!strcmp (demux->core_interface->name, "realmedia") && imx_soc_in_group ("amphion")) {
       GST_DEBUG_OBJECT(demux, "real media parser: need insert header");
       flag |= FLAG_VIDEO_INSERT_HEADER;
     }

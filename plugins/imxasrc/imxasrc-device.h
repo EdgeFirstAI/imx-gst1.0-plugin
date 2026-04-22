@@ -1,5 +1,5 @@
 /* GStreamer
- * Copyright 2025 NXP
+ * Copyright 2025-2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -22,7 +22,7 @@
 
 #include <gst/audio/audio.h>
 #include <gst/gst.h>
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
 
 #define SSRCLIBRARYDIR "/usr/lib/libssrcArmNeon.so"
 #define DSPCLIBRARYDIR "/usr/lib/lib_dspc_asrc.so"

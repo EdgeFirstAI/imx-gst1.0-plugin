@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2013-2015, Freescale Semiconductor, Inc. All rights reserved.
- * Copyright 2017-2018 NXP
+ * Copyright 2017-2018,2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -35,6 +35,7 @@
 #include "config.h"
 #endif
 #include <string.h>
+#include <stdio.h>
 
 #include <gst/video/video.h>
 #include <gst/video/gstvideometa.h>
@@ -48,7 +49,8 @@
 #include <gst/allocators/gstionmemory.h>
 #endif
 #include <libdrm/drm_fourcc.h>
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
+#include "gstimxplugins.h"
 #include "gstvpuallocator.h"
 #include "gstvpudec.h"
 
@@ -309,7 +311,7 @@ gst_vpu_dec_set_format (GstVideoDecoder * bdec, GstVideoCodecState * state)
   gst_query_unref (query);
 
   // Hantro VPU can get best performance with low lantency.
-  if (is_live || IS_HANTRO()) {
+  if (is_live || imx_soc_in_group ("hantro")) {
     GST_INFO_OBJECT (dec, "Pipeline is live, set VPU to low latency mode.\n");
     GST_VPU_DEC_LOW_LATENCY (dec->vpu_dec_object) = TRUE;
   } else {
@@ -390,7 +392,7 @@ gst_vpu_dec_decide_allocation (GstVideoDecoder * bdec, GstQuery * query)
 
   GST_DEBUG_OBJECT (dec, "vpudec query has dmabuf meta %d", alloc_has_meta);
 
-  if (IS_HANTRO() || IS_AMPHION()) {
+  if (imx_soc_in_group ("hantro") || imx_soc_in_group ("amphion")) {
     if (alloc_has_meta) {
       const GstStructure *params;
       gint j, len;
@@ -408,12 +410,12 @@ gst_vpu_dec_decide_allocation (GstVideoDecoder * bdec, GstQuery * query)
             val = gst_value_list_get_value (vdrm_modifier, j);
             guint64 drm_modifier = g_value_get_uint64 (val);
             GST_DEBUG_OBJECT (dec, "dmabuf meta has modifier: %" G_GUINT64_FORMAT, drm_modifier);
-            if (IS_AMPHION() && drm_modifier == DRM_FORMAT_MOD_AMPHION_TILED)
+            if (imx_soc_in_group ("amphion") && drm_modifier == DRM_FORMAT_MOD_AMPHION_TILED)
               dec->vpu_dec_object->drm_modifier = drm_modifier;
-            else if (IS_HANTRO() && drm_modifier == DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED
+            else if (imx_soc_in_group ("hantro") && drm_modifier == DRM_FORMAT_MOD_VSI_G2_TILED_COMPRESSED
                 && dec->vpu_dec_object->is_g2 == TRUE)
               dec->vpu_dec_object->drm_modifier = drm_modifier;
-            else if (IS_HANTRO() && drm_modifier == DRM_FORMAT_MOD_VSI_G1_TILED
+            else if (imx_soc_in_group ("hantro") && drm_modifier == DRM_FORMAT_MOD_VSI_G1_TILED
                 && dec->vpu_dec_object->is_g2 == FALSE)
               dec->vpu_dec_object->drm_modifier = drm_modifier;
             else {
@@ -438,11 +440,11 @@ gst_vpu_dec_decide_allocation (GstVideoDecoder * bdec, GstQuery * query)
     }
   }
 
-  if (IS_HANTRO() && (!dec->vpu_dec_object->implement_config
+  if (imx_soc_in_group ("hantro") && (!dec->vpu_dec_object->implement_config
         || dec->vpu_dec_object->force_linear))
     dec->vpu_dec_object->drm_modifier = 0;
   //FIXME: handle video track selection.
-  if (IS_HANTRO() && dec->vpu_dec_object->drm_modifier_pre != dec->vpu_dec_object->drm_modifier) {
+  if (imx_soc_in_group ("hantro") && dec->vpu_dec_object->drm_modifier_pre != dec->vpu_dec_object->drm_modifier) {
     int config_param = 0;
     GstVpuDecObject * vpu_dec_object = dec->vpu_dec_object;
     gint width_align;

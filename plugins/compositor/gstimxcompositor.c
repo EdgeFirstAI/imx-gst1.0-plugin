@@ -1,6 +1,6 @@
 /* GStreamer IMX video compositor plugin
  * Copyright (c) 2015-2016, Freescale Semiconductor, Inc. All rights reserved.
- * Copyright 2018-2020 NXP
+ * Copyright 2018-2020,2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -118,6 +118,7 @@
 #endif
 
 #include <string.h>
+#include <stdio.h>
 
 #include <gst/allocators/gstdmabuf.h>
 #include <gst/allocators/gstdmabufmeta.h>
@@ -132,6 +133,7 @@
 #endif
 #include "gstimxcompositor.h"
 #include "gstimxcompositorpad.h"
+#include "gstimxplugins.h"
 
 #define IMX_COMPOSITOR_INPUT_POOL_MIN_BUFFERS   1
 #define IMX_COMPOSITOR_INPUT_POOL_MAX_BUFFERS   30
@@ -1459,7 +1461,7 @@ static GstCaps* imx_compositor_caps_from_fmt_list(GList* list, gboolean is_input
   for (i=0; i<g_list_length (list); i++) {
     GstVideoFormat fmt = (GstVideoFormat)g_list_nth_data(list, i);
     /* OpenCL based g2d can't support multi instance. disable is for compositor */
-    if (HAS_DPU ()) {
+    if (imx_soc_in_group ("dpu")) {
       const GstVideoFormatInfo *info = gst_video_format_get_info(fmt);
       GstVideoFormatFlags fmt_flags = GST_VIDEO_FORMAT_INFO_FLAGS (info);
       if (is_input && fmt == GST_VIDEO_FORMAT_NV12_10LE40)

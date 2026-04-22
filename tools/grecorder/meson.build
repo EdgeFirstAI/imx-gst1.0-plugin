@@ -12,7 +12,8 @@ recorderengine = library('recorder_engine-@0@'.format(api_version),
   version : '0.0.0',
   soversion : 0,
   install : true,
-  dependencies : [gst_dep, gst_base_dep, gst_plugins_base_dep, gst_video_dep, gstpbutils_dep, gstapp_dep],
+  include_directories : ['../../libs'],
+  dependencies : [gst_dep, gst_base_dep, gst_plugins_base_dep, gst_video_dep, gstpbutils_dep, gstapp_dep, gstfsl_dep],
 )
 
 recorderengine_dep = declare_dependency(link_with : recorderengine)

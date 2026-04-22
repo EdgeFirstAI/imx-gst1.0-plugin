@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016, Freescale Semiconductor, Inc. All rights reserved.
- * Copyright 2017,2018 NXP
+ * Copyright 2017,2018,2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -18,7 +18,6 @@
  * Boston, MA 02111-1307, USA.
  */
 
-#include "gstimxcommon.h"
 #include "gstimx.h"
 #include <fcntl.h>
 #include <sys/ioctl.h>

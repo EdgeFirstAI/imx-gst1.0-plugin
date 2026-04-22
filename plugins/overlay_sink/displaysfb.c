@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2013-2016, Freescale Semiconductor, Inc. All rights reserved.
- * Copyright 2017 NXP
+ * Copyright 2017,2026 NXP
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -31,7 +31,7 @@
 #include <linux/mxcfb.h>
 #endif
 
-#include "gstimxcommon.h"
+#include "gstimxsocfeatures.h"
 #include "displays.h"
 #include "gstsutils.h"
 #include "gstimxv4l2.h"
@@ -184,17 +184,11 @@ static void set_display_color_key (gchar *device, gboolean enable, gint color_ke
 gint scan_displays(gpointer **phandle, gint *pcount)
 {
   GstsutilsEntry *entry = NULL;
-  CHIP_CODE chipcode = imx_chip_code();
-  switch (chipcode) {
-    case CC_MX8:
-      entry = gstsutils_init_entry ("/usr/share/imx_8dv_display_config");
-    break;
-    case CC_MX7ULP:
-      entry = gstsutils_init_entry ("/usr/share/imx_7ulp_display_config");
-    break;
-    default:
-    break;
-  }
+  if (imx_soc_is_chip ("MX8"))
+    entry = gstsutils_init_entry ("/usr/share/imx_8dv_display_config");
+  
+  if (imx_soc_is_chip ("MX7ULP"))
+    entry = gstsutils_init_entry ("/usr/share/imx_7ulp_display_config");
 
   gint group_count;
   gint i;
