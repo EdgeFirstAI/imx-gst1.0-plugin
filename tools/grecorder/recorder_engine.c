@@ -2035,8 +2035,9 @@ static REresult add_time_stamp(RecorderEngineHandle handle, REboolean bAddTimeSt
   gRecorderEngine *recorder = (gRecorderEngine *)(h->pData);
 
   if (bAddTimeStamp) {
-      /* INFO: cannot use HAS_G2D, encoder on 8qm/qxp only support NV12 */
-      if (imx_soc_in_group ("g2d") && !imx_soc_in_group ("MX")) {
+      /* INFO: cannot use HAS_G2D, encoder on 8qm/qxp/imx952 only support NV12 */
+      if (imx_soc_in_group ("g2d") && !imx_soc_in_group ("imx-legacy")
+          && !imx_soc_in_group ("amphion") && !imx_soc_is_chip ("MX952")) {
           recorder->date_time = DATE_TIME TIME_OVERLAY HW_COMPOSITOR "queue";
       }
       else if (imx_soc_in_group ("amphion") || imx_soc_is_chip ("MX952")) {
